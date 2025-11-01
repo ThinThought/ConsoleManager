@@ -12,6 +12,9 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
+[project.scripts]
+gamesdb = "gamesdb.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["gamesdb*"]
 exclude = ["datasets*"]

@@ -1,18 +1,27 @@
 # GamesDB
 
+<p align="center">
+  <img src="logo.png" alt="GamesDB logo" width="180">
+</p>
+
 Kit de utilidades para gestionar el árbol de juegos de la RG34XX (u otras consolas retro) desde Python. Expone herramientas para indexar rutas, generar datasets CSV y mantener respaldos incrementales de la tarjeta SD.
 
-## Instalación
+## Instalación con uv
+
+La forma recomendada de gestionar dependencias es con [uv](https://docs.astral.sh/uv/):
 
 ```bash
-pip install gamesdb
+# Instalar la última versión publicada
+uv pip install .
 ```
 
-Al instalar el paquete se resuelven automáticamente las rutas declaradas en `gamesdb/data/config/config.yaml`. Si trabajas localmente con el repo, también puedes hacer:
+Si estás trabajando desde el repositorio clonado, prepara el entorno reproducible con:
 
 ```bash
-pip install -e .
+uv sync
 ```
+
+Luego podrás ejecutar cualquier comando directo con `uv run`, por ejemplo `uv run gamesdb get-games`.
 
 ## Configuración
 
@@ -50,25 +59,42 @@ restore_backup("2024-11-01")
 
 Cada helper respeta la configuración cargada en `gamesdb/data/config/config.yaml`, por lo que no necesitas pasar rutas manualmente.
 
-## Uso CLI (opcional)
+## CLI oficial
 
-El repositorio incluye `main.py` para invocar los mismos flujos desde la terminal:
+Desde la versión actual se expone un `console_script` llamado `gamesdb` que agrupa los mismos flujos operativos. Si estás dentro del repo, invócalo con `uv run` para reutilizar el entorno sincronizado:
 
 ```bash
-python main.py paths --output ./gamesdb_localdata/paths.txt
-python main.py datasets
-python main.py backup
-python main.py restore 2024-11-01
-python main.py ping --count 2
+# Generar listado de rutas
+uv run gamesdb paths
+# Exportar datasets CSV
+uv run gamesdb datasets 
+# Operaciones de backup y restauración
+uv run gamesdb backup-sd
+# Reindexar juegos y generar miniaturas (incluye reinserción desde games_to_include)
+uv run gamesdb get-games
+# Prueba de conectividad
+uv run gamesdb ping --count 2
 ```
+
+También puedes invocarlo sin instalar usando el módulo directamente:
+
+```bash
+uv run python -m gamesdb.cli get-games
+```
+
+Internamente el comando `get-games`:
+
+- Normaliza los nombres de las carpetas como `NNN_Titulo`.
+- Copia ROMs y carátulas desde el backup (`paths.roms_dir`) y genera miniaturas 256x160.
+- Detecta carpetas creadas a mano en `games_to_include`, reinserta su contenido en la plataforma correcta (usando `emu_extensions.yaml`) y borra la carpeta original tras reindexar.
 
 ## Desarrollo y pruebas
 
 Instala las dependencias opcionales y ejecuta la suite integrada:
 
 ```bash
-pip install .[dev]
-pytest gamesdb_tests
+uv sync
+uv run pytest gamesdb_tests
 ```
 
 Los tests generan directorios locales según la configuración y verifican la conectividad con el servidor definido en el YAML (incluye ping de salud).

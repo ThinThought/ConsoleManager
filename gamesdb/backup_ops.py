@@ -10,6 +10,18 @@ import gamesdb
 from rich.console import Console
 from rich.panel import Panel
 
+
+def _clear_directory(directory: Path) -> None:
+    """Recursively remove all contents from directory without deleting the root."""
+    if not directory.exists():
+        return
+    for child in directory.iterdir():
+        if child.is_dir():
+            _clear_directory(child)
+            child.rmdir()
+        else:
+            child.unlink()
+
 console = Console()
 
 remote_sd_dir = gamesdb.GAMESDB_CONFIG["paths"]["backup_remote_sd_dir"]
@@ -24,8 +36,9 @@ BACKUP_MMC_SOURCE = f"{user}@{host}:{remote_mmc_dir}/"
 BACKUP_DIR = Path(gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"])
 
 def run_sd_backup():
-    """Sync /mnt/sdcard into a dated snapshot under sdcard_backup_dir."""
+    """Sync /mnt/sdcard into a dated snapshot and duplicate it to 'latest'."""
     snapshot_dir = BACKUP_DIR / datetime.now().strftime("%Y-%m-%d")
+    latest_dir = BACKUP_DIR / "latest"
     snapshot_dir.mkdir(parents=True, exist_ok=True)
 
     console.print(Panel.fit(
@@ -36,25 +49,20 @@ def run_sd_backup():
     try:
         console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_SD_SOURCE}")
         console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
-        cmd = [
-            "rsync",
-            "-avz",
-            "--delete",
-            BACKUP_SD_SOURCE,
-            str(snapshot_dir),
-        ]
-        console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
-        snapshot_dir = BACKUP_DIR / "latest"
-        subprocess.run(cmd, check=True, text=True)
-        cmd = [
-            "rsync",
-            "-avz",
-            "--delete",
-            BACKUP_SD_SOURCE,
-            str(snapshot_dir),
-        ]
+
+        cmd = ["rsync", "-avz", "--delete", BACKUP_SD_SOURCE, str(snapshot_dir)]
         console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
         subprocess.run(cmd, check=True, text=True)
+
+        console.print(f"[yellow]📀 Cloning snapshot to:[/yellow] {latest_dir}")
+        latest_dir.mkdir(parents=True, exist_ok=True)
+        _clear_directory(latest_dir)
+        subprocess.run(
+            ["rsync", "-a", "--delete", f"{snapshot_dir}/", str(latest_dir)],
+            check=True,
+            text=True,
+        )
+
     except subprocess.CalledProcessError as proc_err:
         console.print(f"[red]{proc_err}[/red]")
         raise SystemExit(1)
@@ -63,6 +71,8 @@ def run_sd_backup():
         "[bold green]✅ Backup completed successfully![/bold green]",
         border_style="green"
     ))
+
+
 
 def run_systems_backup():
     snapshot_dir = BACKUP_DIR / f"mmc"
@@ -128,4 +138,3 @@ def restore_sd_backup(snapshot_name: str):
     ))
     if result.stdout.strip():
         console.print(result.stdout)
-
