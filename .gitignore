@@ -8,6 +8,6 @@ wheels/
 
 # Locally generated data
 gamesdb_localdata
-
+AGENTS.md
 # Virtual environments
 .venv
