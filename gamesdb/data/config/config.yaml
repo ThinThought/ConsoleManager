@@ -8,6 +8,12 @@ server:
 
 paths:
   target_dir: .
-  output_dir: ./gamesdb_localdata/artifacts
+  output_dir: ./gamesdb_localdata
+  artifacts_dir: ./gamesdb_localdata/artifacts
   datasets_dir: ./gamesdb_localdata/datasets
   sdcard_backup_dir: ./gamesdb_localdata/sdcard_backups
+  games_to_include_dir: ./gamesdb_localdata/games_to_include
+  backup_source_dir: /mnt/sdcard
+
+
+

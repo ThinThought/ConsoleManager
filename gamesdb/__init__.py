@@ -21,7 +21,7 @@ console.print(Panel.fit(
 config_path = files("gamesdb.data.config").joinpath("config.yaml")
 
 GAMESDB_CONFIG = yaml.safe_load(config_path.read_text())
-setup_dirs([Path(p) for p in GAMESDB_CONFIG["paths"].values()])
+
 TARGET_DIR = Path(GAMESDB_CONFIG["paths"]["target_dir"])
 OUTPUT_DIR = Path(GAMESDB_CONFIG["paths"]["output_dir"])
 DATASETS_DIR = Path(GAMESDB_CONFIG["paths"]["datasets_dir"])
@@ -33,3 +33,5 @@ console.print(Panel.fit(
     title="[bold yellow]Current Configuration[/bold yellow]",
     border_style="yellow"
 ))
+paths = [Path(p) for k, p in GAMESDB_CONFIG["paths"].items() if "backup_source" not in k]
+setup_dirs(paths)

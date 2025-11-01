@@ -12,16 +12,18 @@ from rich.panel import Panel
 
 console = Console()
 
-BACKUP_SOURCE = Path("/mnt/sdcard")
+remote_dir = gamesdb.GAMESDB_CONFIG["paths"]["backup_source_dir"]
+user = gamesdb.GAMESDB_CONFIG["server"]["user"]
+host = gamesdb.GAMESDB_CONFIG["server"]["ip"]
 
+
+BACKUP_SOURCE = f"{user}@{host}:{remote_dir}/"
+
+BACKUP_DIR = Path(gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"])
 
 def run_backup():
     """Sync /mnt/sdcard into a dated snapshot under sdcard_backup_dir."""
-    backup_root = Path(
-        gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"]
-    ).expanduser().resolve()
-
-    snapshot_dir = backup_root / datetime.now().strftime("%Y-%m-%d")
+    snapshot_dir = BACKUP_DIR / datetime.now().strftime("%Y-%m-%d")
     snapshot_dir.mkdir(parents=True, exist_ok=True)
 
     console.print(Panel.fit(
@@ -30,29 +32,24 @@ def run_backup():
     ))
     console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_SOURCE}")
     console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
-
-    cmd = [
-        "rsync",
-        "-a",
-        "--delete",
-        "--info=progress2",
-        f"{BACKUP_SOURCE}/",
-        str(snapshot_dir),
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"❌ Backup failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+    try:
+        cmd = [
+            "rsync",
+            "-avz",
+            "--delete",
+            BACKUP_SOURCE,
+            str(snapshot_dir),
+        ]
+        console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
+        subprocess.run(cmd, check=True, text=True)
+    except subprocess.CalledProcessError as proc_err:
+        console.print(f"[red]{proc_err}[/red]")
+        raise SystemExit(1)
 
     console.print(Panel.fit(
         "[bold green]✅ Backup completed successfully![/bold green]",
         border_style="green"
     ))
-    if result.stdout.strip():
-        console.print(result.stdout)
 
 
 def restore_backup(snapshot_name: str):

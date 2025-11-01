@@ -16,20 +16,21 @@ from rich.progress import track
 console = Console()
 
 
-def run_paths_command(output: Path | None):
+def run_paths_command():
     """Generate a full path listing under TARGET_DIR."""
-    output_path = output or (gamesdb.OUTPUT_DIR / "paths.txt")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_txt = Path(gamesdb.GAMESDB_CONFIG['paths']['artifacts_dir']) / "paths.txt"
+    gamesdb.OUTPUT_DIR.parent.mkdir(parents=True, exist_ok=True)
 
     console.print(Panel.fit(
         "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Generating path index[/green]",
         border_style="cyan"
     ))
-    console.print(f"[yellow]📂 Root:[/yellow] {gamesdb.TARGET_DIR}")
-    console.print(f"[yellow]📝 Output:[/yellow] {output_path}")
+    console.print(f"[yellow]📂 Root:[/yellow] {gamesdb.OUTPUT_DIR}")
+    console.print(f"[yellow]📝 Output:[/yellow] {output_txt}")
 
-    get_paths(gamesdb.TARGET_DIR, output_path)
-    console.print(f"[green]✅ Path index created at:[/green] {output_path}")
+    target_dir = Path(gamesdb.GAMESDB_CONFIG['paths']['output_dir'])
+    get_paths(target_dir=target_dir, output=output_txt)
+    console.print(f"[green]✅ Path index created at:[/green] {output_txt}")
 
 
 def run_datasets_command(target: Path | None, dataset_dir: Path | None):
@@ -91,12 +92,6 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     paths_parser = subparsers.add_parser("paths", help="Generate a paths.txt index.")
-    paths_parser.add_argument(
-        "--output",
-        "-o",
-        type=Path,
-        help="Custom output file for the generated path list.",
-    )
 
     datasets_parser = subparsers.add_parser("datasets", help="Export CSV datasets for each subdirectory.")
     datasets_parser.add_argument(
@@ -142,7 +137,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "paths":
-        run_paths_command(args.output)
+        run_paths_command()
     elif args.command == "datasets":
         run_datasets_command(args.target, args.datasets_dir)
     elif args.command == "backup":
