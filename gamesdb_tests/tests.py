@@ -51,22 +51,44 @@ def test_thumbnailer_parser_handles_paths():
 
 
 def test_get_games_reindexes_rom_and_png(tmp_path):
-    """Ensure get_games creates per-game directories with ROM and artwork."""
+    """Ensure get_games normalizes numbering and copies ROMs/artwork."""
     roms_root = tmp_path / "Roms"
     platform_dir = roms_root / "FC"
     images_dir = platform_dir / "Imgs"
     platform_dir.mkdir(parents=True)
     images_dir.mkdir()
 
-    rom_path = platform_dir / "001_Ghostn_Goblins.nes"
-    rom_path.write_text("dummy rom data", encoding="utf-8")
-    png_path = images_dir / "001_Ghostn_Goblins.png"
-    png_path.write_bytes(b"PNGDATA")
+    rom_prefixed = platform_dir / "002_Legend_of_Zelda.nes"
+    rom_prefixed.write_text("legend rom", encoding="utf-8")
+    (images_dir / "Legend_of_Zelda.png").write_bytes(b"PNG1")
+
+    rom_plain = platform_dir / "Metroid.nes"
+    rom_plain.write_text("metroid rom", encoding="utf-8")
+    (images_dir / "Metroid.png").write_bytes(b"PNG2")
+
+    rom_new = platform_dir / "rythm_tengoku.gba"
+    rom_new.write_text("paradise rom", encoding="utf-8")
+    (images_dir / "New Rythm Paradise.png").write_bytes(b"PNG3")
 
     destination_root = tmp_path / "output"
+    stale_dir = destination_root / "999_OldGame"
+    stale_dir.mkdir(parents=True)
+    (stale_dir / "stale.txt").write_text("stale", encoding="utf-8")
+
     created_dirs = get_games(roms_root, destination_root)
 
-    expected_game_dir = destination_root / "001_Ghostn_Goblins"
-    assert expected_game_dir in created_dirs
-    assert (expected_game_dir / "001_Ghostn_Goblins.nes").read_text(encoding="utf-8") == "dummy rom data"
-    assert (expected_game_dir / "001_Ghostn_Goblins.png").read_bytes() == b"PNGDATA"
+    folder_names = [p.name for p in created_dirs]
+    assert folder_names == ["001_Legend_Of_Zelda", "002_Metroid", "003_New_Rythm_Paradise"]
+
+    legend_dir = destination_root / "001_Legend_Of_Zelda"
+    metroid_dir = destination_root / "002_Metroid"
+    paradise_dir = destination_root / "003_New_Rythm_Paradise"
+
+    assert (legend_dir / "002_Legend_of_Zelda.nes").read_text(encoding="utf-8") == "legend rom"
+    assert (legend_dir / "Legend_of_Zelda.png").read_bytes() == b"PNG1"
+
+    assert (metroid_dir / "Metroid.nes").read_text(encoding="utf-8") == "metroid rom"
+    assert (metroid_dir / "Metroid.png").read_bytes() == b"PNG2"
+    assert (paradise_dir / "rythm_tengoku.gba").read_text(encoding="utf-8") == "paradise rom"
+    assert (paradise_dir / "New Rythm Paradise.png").read_bytes() == b"PNG3"
+    assert not stale_dir.exists()
