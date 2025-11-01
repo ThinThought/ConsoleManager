@@ -18,6 +18,7 @@ host = gamesdb.GAMESDB_CONFIG["server"]["ip"]
 
 
 BACKUP_SOURCE = f"{user}@{host}:{remote_dir}/"
+BACKUP_MMC_SOURCE = f"{user}@{host}:/mnt/mmc"
 
 BACKUP_DIR = Path(gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"])
 
@@ -31,13 +32,25 @@ def run_backup():
         border_style="cyan"
     ))
     console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_SOURCE}")
-    console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
     try:
+        console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
         cmd = [
             "rsync",
             "-avz",
             "--delete",
             BACKUP_SOURCE,
+            str(snapshot_dir),
+        ]
+        console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
+        subprocess.run(cmd, check=True, text=True)
+
+        snapshot_dir = BACKUP_DIR / f"{datetime.now().strftime("%Y-%m-%d")}_mmc"
+        console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
+        cmd = [
+            "rsync",
+            "-avz",
+            "--delete",
+            BACKUP_MMC_SOURCE,
             str(snapshot_dir),
         ]
         console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
