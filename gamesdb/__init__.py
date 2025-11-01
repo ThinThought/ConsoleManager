@@ -33,5 +33,5 @@ console.print(Panel.fit(
     title="[bold yellow]Current Configuration[/bold yellow]",
     border_style="yellow"
 ))
-paths = [Path(p) for k, p in GAMESDB_CONFIG["paths"].items() if "backup_source" not in k]
+paths = [Path(p) for k, p in GAMESDB_CONFIG["paths"].items() if "remote" not in k]
 setup_dirs(paths)
