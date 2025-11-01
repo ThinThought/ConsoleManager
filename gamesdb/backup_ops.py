@@ -44,7 +44,7 @@ def run_backup():
         console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
         subprocess.run(cmd, check=True, text=True)
 
-        snapshot_dir = BACKUP_DIR / f"{datetime.now().strftime("%Y-%m-%d")}_mmc"
+        snapshot_dir = BACKUP_DIR / f"mmc"
         console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
         cmd = [
             "rsync",
