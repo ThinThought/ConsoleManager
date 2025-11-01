@@ -1,5 +1,7 @@
 # test_gamesdb.py
 from pathlib import Path
+
+import gamesdb
 from gamesdb.get_paths import get_paths
 from gamesdb.tree_to_csv_datasets import export_dataset
 from rich.console import Console
@@ -8,9 +10,9 @@ from rich.progress import track
 
 console = Console()
 
-TARGET_DIR = Path(".")
-OUTPUT_DIR = Path("./gamesdb_localdata")
-DATASETS_DIR = OUTPUT_DIR / "datasets"
+TARGET_DIR = gamesdb.TARGET_DIR
+OUTPUT_DIR = gamesdb.OUTPUT_DIR
+DATASETS_DIR = gamesdb.DATASETS_DIR
 
 def setup_dirs():
     """Ensure required directories exist."""
