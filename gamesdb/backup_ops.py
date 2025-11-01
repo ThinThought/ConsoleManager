@@ -12,13 +12,14 @@ from rich.panel import Panel
 
 console = Console()
 
-remote_dir = gamesdb.GAMESDB_CONFIG["paths"]["backup_source_dir"]
+remote_sd_dir = gamesdb.GAMESDB_CONFIG["paths"]["backup_remote_sd_dir"]
+remote_mmc_dir = gamesdb.GAMESDB_CONFIG["paths"]["backup_remote_mmc_dir"]
 user = gamesdb.GAMESDB_CONFIG["server"]["user"]
 host = gamesdb.GAMESDB_CONFIG["server"]["ip"]
 
 
-BACKUP_SOURCE = f"{user}@{host}:{remote_dir}/"
-BACKUP_MMC_SOURCE = f"{user}@{host}:/mnt/mmc"
+BACKUP_SD_SOURCE = f"{user}@{host}:{remote_sd_dir}/"
+BACKUP_MMC_SOURCE = f"{user}@{host}:{remote_mmc_dir}/"
 
 BACKUP_DIR = Path(gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"])
 
@@ -31,20 +32,22 @@ def run_backup():
         "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Starting SD card backup[/green]",
         border_style="cyan"
     ))
-    console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_SOURCE}")
+
     try:
+        console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_SD_SOURCE}")
         console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
         cmd = [
             "rsync",
             "-avz",
             "--delete",
-            BACKUP_SOURCE,
+            BACKUP_SD_SOURCE,
             str(snapshot_dir),
         ]
         console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
         subprocess.run(cmd, check=True, text=True)
 
         snapshot_dir = BACKUP_DIR / f"mmc"
+        console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_MMC_SOURCE}")
         console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
         cmd = [
             "rsync",

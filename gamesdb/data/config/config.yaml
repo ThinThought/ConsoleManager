@@ -10,10 +10,11 @@ paths:
   target_dir: .
   output_dir: ./gamesdb_localdata
   artifacts_dir: ./gamesdb_localdata/artifacts
-  datasets_dir: ./gamesdb_localdata/datasets
-  sdcard_backup_dir: ./gamesdb_localdata/sdcard_backups
+  datasets_dir: ./gamesdb_localdata/db
+  sdcard_backup_dir: ./gamesdb_localdata/system_backups
   games_to_include_dir: ./gamesdb_localdata/games_to_include
-  backup_source_dir: /mnt/sdcard
+  backup_remote_sd_dir: /mnt/sdcard
+  backup_remote_mmc_dir: /mnt/mmc
 
 
 
