@@ -7,6 +7,7 @@ import subprocess
 
 import gamesdb
 from gamesdb.get_paths import get_paths
+from gamesdb.get_games import iter_reindexed_games
 from gamesdb.tree_to_csv_datasets import export_dataset
 from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
 from gamesdb.thumbnailer import make_thumbnail
@@ -105,6 +106,32 @@ def run_thumbnail_command(input_image: Path, output_image: Path) -> None:
     ))
 
 
+def run_get_games_command(roms_dir: Path | None, output_dir: Path | None, platforms: list[str] | None) -> None:
+    """Reindex ROMs into per-game folders, copying paired artwork when available."""
+    roms_root = roms_dir or Path(gamesdb.GAMESDB_CONFIG["paths"]["roms_dir"])
+    destination_root = output_dir or Path(gamesdb.GAMESDB_CONFIG["paths"]["games_to_include_dir"])
+    platform_filter = set(platforms) if platforms else None
+
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Reindexing games[/green]",
+        border_style="cyan"
+    ))
+    console.print(f"[yellow]📂 ROM source:[/yellow] {roms_root}")
+    console.print(f"[yellow]📂 Output root:[/yellow] {destination_root}")
+    if platform_filter:
+        console.print(f"[yellow]🎯 Platforms:[/yellow] {', '.join(sorted(platform_filter))}")
+
+    created = list(track(
+        iter_reindexed_games(roms_root, destination_root, platforms=platform_filter),
+        description="[cyan]Copying assets[/cyan]",
+    ))
+
+    console.print(Panel.fit(
+        f"[bold green]✅ Reindexed {len(created)} games[/bold green]",
+        border_style="green"
+    ))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GamesDB utility launcher.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -163,6 +190,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Where to write the generated PNG thumbnail.",
     )
 
+    get_games_parser = subparsers.add_parser(
+        "get-games",
+        help="Copy ROMs and associated PNG artwork into per-game folders.",
+    )
+    get_games_parser.add_argument(
+        "--roms-dir",
+        type=Path,
+        help="Override the ROM source directory (defaults to config roms_dir).",
+    )
+    get_games_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Override the destination directory (defaults to config games_to_include_dir).",
+    )
+    get_games_parser.add_argument(
+        "--platform",
+        action="append",
+        help="Limit processing to a specific platform (can be passed multiple times).",
+    )
+
     return parser
 
 
@@ -184,6 +231,8 @@ def main():
         restore_sd_backup(args.snapshot)
     elif args.command == "thumbnailer":
         run_thumbnail_command(args.input_image, args.output_image)
+    elif args.command == "get-games":
+        run_get_games_command(args.roms_dir, args.output_dir, args.platform)
     else:
         parser.error(f"Unknown command {args.command}")
 
