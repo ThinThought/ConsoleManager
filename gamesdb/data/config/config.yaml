@@ -1,11 +1,13 @@
 # gamesdb_config.yaml
 server:
   name: 192.168.1.140
+  ip: 192.168.1.140
+  port: 22
   user: root
   pass: root
 
 paths:
   target_dir: .
-  output_dir: ./gamesdb_localdata
+  output_dir: ./gamesdb_localdata/artifacts
   datasets_dir: ./gamesdb_localdata/datasets
   sdcard_backup_dir: ./gamesdb_localdata/sdcard_backups

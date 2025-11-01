@@ -1,5 +1,7 @@
 # test_gamesdb.py
+import rich.segment
 from pathlib import Path
+import subprocess
 
 import gamesdb
 from gamesdb.get_paths import get_paths
@@ -14,14 +16,9 @@ TARGET_DIR = gamesdb.TARGET_DIR
 OUTPUT_DIR = gamesdb.OUTPUT_DIR
 DATASETS_DIR = gamesdb.DATASETS_DIR
 
-def setup_dirs():
-    """Ensure required directories exist."""
-    for d in [OUTPUT_DIR, DATASETS_DIR]:
-        d.mkdir(parents=True, exist_ok=True)
 
 def test_generate_paths():
     """Test generation of path list file."""
-    setup_dirs()
     console.print(Panel.fit(
         "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Testing path list generation[/green]",
         border_style="cyan"
@@ -36,7 +33,6 @@ def test_generate_paths():
 
 def test_export_datasets():
     """Test dataset export for all subdirectories."""
-    setup_dirs()
     console.print(Panel.fit(
         "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Testing dataset export[/green]",
         border_style="cyan"
@@ -54,6 +50,33 @@ def test_export_datasets():
     ))
 
 
+def test_server_ping():
+    """Ensure the configured server responds to ICMP ping."""
+    host_ip = gamesdb.GAMESDB_CONFIG["server"]["ip"]
+    host_port = gamesdb.GAMESDB_CONFIG["server"]["port"]
+
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Testing server connectivity[/green]",
+        border_style="cyan"
+    ))
+    console.print(f"[yellow]📡 Pinging host:[/yellow] {host_ip} (port {host_port})")
+
+    result = subprocess.run(
+        ["ping", "-c", "2", host_ip],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, (
+        f"❌ Ping to {host_ip}:{host_port} failed\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+    console.print(f"[green]✅ Host reachable:[/green] {host_ip}:{host_port}")
+
+
 if __name__ == '__main__':
+    console.print("-" * 125)
+    test_server_ping()
+    console.print("-" * 125)
     test_generate_paths()
+    console.print("-"*125)
     test_export_datasets()
