@@ -8,7 +8,7 @@ import subprocess
 import gamesdb
 from gamesdb.get_paths import get_paths
 from gamesdb.tree_to_csv_datasets import export_dataset
-from gamesdb.backup_ops import run_backup, restore_backup
+from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
@@ -107,7 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Destination directory for CSV files (defaults to config DATASETS_DIR).",
     )
 
-    subparsers.add_parser("backup", help="Create a dated backup snapshot.")
+    subparsers.add_parser("backup-sd", help="Create a dated backup snapshot.")
+    subparsers.add_parser("backup-system", help="Create a dated backup snapshot.")
 
     ping_parser = subparsers.add_parser("ping", help="Ping the configured server.")
     ping_parser.add_argument(
@@ -140,12 +141,14 @@ def main():
         run_paths_command()
     elif args.command == "datasets":
         run_datasets_command(args.target, args.datasets_dir)
-    elif args.command == "backup":
-        run_backup()
+    elif args.command == "backup-sd":
+        run_sd_backup()
+    elif args.command == "backup-system":
+        run_systems_backup()
     elif args.command == "ping":
         run_ping_command(args.host, args.count)
     elif args.command == "restore":
-        restore_backup(args.snapshot)
+        restore_sd_backup(args.snapshot)
     else:
         parser.error(f"Unknown command {args.command}")
 

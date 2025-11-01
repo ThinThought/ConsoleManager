@@ -23,7 +23,7 @@ BACKUP_MMC_SOURCE = f"{user}@{host}:{remote_mmc_dir}/"
 
 BACKUP_DIR = Path(gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"])
 
-def run_backup():
+def run_sd_backup():
     """Sync /mnt/sdcard into a dated snapshot under sdcard_backup_dir."""
     snapshot_dir = BACKUP_DIR / datetime.now().strftime("%Y-%m-%d")
     snapshot_dir.mkdir(parents=True, exist_ok=True)
@@ -44,9 +44,35 @@ def run_backup():
             str(snapshot_dir),
         ]
         console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
+        snapshot_dir = BACKUP_DIR / "latest"
         subprocess.run(cmd, check=True, text=True)
+        cmd = [
+            "rsync",
+            "-avz",
+            "--delete",
+            BACKUP_SD_SOURCE,
+            str(snapshot_dir),
+        ]
+        console.print(f"[blue]$ {' '.join(cmd)}[/blue]")
+        subprocess.run(cmd, check=True, text=True)
+    except subprocess.CalledProcessError as proc_err:
+        console.print(f"[red]{proc_err}[/red]")
+        raise SystemExit(1)
 
-        snapshot_dir = BACKUP_DIR / f"mmc"
+    console.print(Panel.fit(
+        "[bold green]✅ Backup completed successfully![/bold green]",
+        border_style="green"
+    ))
+
+def run_systems_backup():
+    snapshot_dir = BACKUP_DIR / f"mmc"
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Starting System backup[/green]",
+        border_style="cyan"
+    ))
+    try:
         console.print(f"[yellow]📂 Source:[/yellow] {BACKUP_MMC_SOURCE}")
         console.print(f"[yellow]💾 Destination:[/yellow] {snapshot_dir}")
         cmd = [
@@ -62,13 +88,8 @@ def run_backup():
         console.print(f"[red]{proc_err}[/red]")
         raise SystemExit(1)
 
-    console.print(Panel.fit(
-        "[bold green]✅ Backup completed successfully![/bold green]",
-        border_style="green"
-    ))
 
-
-def restore_backup(snapshot_name: str):
+def restore_sd_backup(snapshot_name: str):
     """Restore a dated snapshot back into /mnt/sdcard."""
     backup_root = Path(
         gamesdb.GAMESDB_CONFIG["paths"]["sdcard_backup_dir"]
@@ -83,7 +104,7 @@ def restore_backup(snapshot_name: str):
         border_style="cyan"
     ))
     console.print(f"[yellow]📂 Snapshot:[/yellow] {snapshot_dir}")
-    console.print(f"[yellow]💾 Destination:[/yellow] {BACKUP_SOURCE}")
+    console.print(f"[yellow]💾 Destination:[/yellow] {BACKUP_SD_SOURCE}")
 
     cmd = [
         "rsync",
@@ -91,7 +112,7 @@ def restore_backup(snapshot_name: str):
         "--delete",
         "--info=progress2",
         f"{snapshot_dir}/",
-        str(BACKUP_SOURCE),
+        str(BACKUP_SD_SOURCE),
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -108,28 +129,3 @@ def restore_backup(snapshot_name: str):
     if result.stdout.strip():
         console.print(result.stdout)
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Backup or restore the RG34XX SD card contents."
-    )
-    parser.add_argument(
-        "command",
-        nargs="?",
-        choices=("backup", "restore"),
-        default="backup",
-        help="Action to perform (default: backup).",
-    )
-    parser.add_argument(
-        "--snapshot",
-        "-s",
-        help="Snapshot name to restore when using the restore command.",
-    )
-    args = parser.parse_args()
-
-    if args.command == "backup":
-        run_backup()
-    else:
-        if not args.snapshot:
-            parser.error("restore requires --snapshot/-s to be provided")
-        restore_backup(args.snapshot)
