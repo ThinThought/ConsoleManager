@@ -1,9 +1,11 @@
 # test_gamesdb.py
 import subprocess
+from pathlib import Path
 
 import gamesdb
 from gamesdb.get_paths import get_paths
 from gamesdb.tree_to_csv_datasets import export_dataset
+from main import build_parser
 
 
 TARGET_DIR = gamesdb.TARGET_DIR
@@ -36,3 +38,12 @@ def test_server_ping():
     assert result.returncode == 0, (
         f"❌ Ping to {host_ip}:{host_port} failed\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
+
+
+def test_thumbnailer_parser_handles_paths():
+    """Verify the main CLI parses thumbnailer arguments into Paths."""
+    parser = build_parser()
+    args = parser.parse_args(["thumbnailer", "cover.jpg", "out.png"])
+    assert args.command == "thumbnailer"
+    assert args.input_image == Path("cover.jpg")
+    assert args.output_image == Path("out.png")

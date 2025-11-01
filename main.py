@@ -9,6 +9,7 @@ import gamesdb
 from gamesdb.get_paths import get_paths
 from gamesdb.tree_to_csv_datasets import export_dataset
 from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
+from gamesdb.thumbnailer import make_thumbnail
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
@@ -87,6 +88,23 @@ def run_ping_command(host_override: str | None, count: int):
         console.print(result.stdout)
 
 
+def run_thumbnail_command(input_image: Path, output_image: Path) -> None:
+    """Generate a thumbnail using the configured thumbnailer utility."""
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Generating thumbnail[/green]",
+        border_style="cyan"
+    ))
+    console.print(f"[yellow]🖼️ Source:[/yellow] {input_image}")
+    console.print(f"[yellow]💾 Output:[/yellow] {output_image}")
+
+    make_thumbnail(input_image, output_image)
+
+    console.print(Panel.fit(
+        "[bold green]✅ Thumbnail created![/bold green]",
+        border_style="green"
+    ))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GamesDB utility launcher.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -130,6 +148,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Snapshot name to restore (e.g., 2024-11-01).",
     )
 
+    thumbnail_parser = subparsers.add_parser(
+        "thumbnailer",
+        help="Generate a 256x160 transparent-background thumbnail.",
+    )
+    thumbnail_parser.add_argument(
+        "input_image",
+        type=Path,
+        help="Path to the source image.",
+    )
+    thumbnail_parser.add_argument(
+        "output_image",
+        type=Path,
+        help="Where to write the generated PNG thumbnail.",
+    )
+
     return parser
 
 
@@ -149,6 +182,8 @@ def main():
         run_ping_command(args.host, args.count)
     elif args.command == "restore":
         restore_sd_backup(args.snapshot)
+    elif args.command == "thumbnailer":
+        run_thumbnail_command(args.input_image, args.output_image)
     else:
         parser.error(f"Unknown command {args.command}")
 
