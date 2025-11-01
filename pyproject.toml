@@ -6,9 +6,19 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pathlib>=1.0.1",
+    "pyyaml>=6.0.3",
+    "rich>=14.2.0",
+    "tqdm>=4.67.1",
 ]
 
-[tool.uv.workspace]
-members = [
-    "data/config",
+[tool.setuptools.packages.find]
+include = ["gamesdb*"]
+exclude = ["datasets*"]
+
+[tool.setuptools.package-data]
+gamesdb = ["data/config/*.yaml"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
 ]

@@ -8,9 +8,6 @@ fullpath, name, extension, parent, size_bytes, is_dir
 from pathlib import Path
 import csv
 
-ROOT_DIR = Path("../roms")     # directorio raíz del tree
-DATASETS_DIR = Path("../datasets")  # salida
-
 def collect_info(path: Path):
     """Extrae metadatos de un path."""
     try:
@@ -27,9 +24,9 @@ def collect_info(path: Path):
         print(f"⚠️ Error leyendo {path}: {e}")
         return None
 
-def export_dataset(subdir: Path):
+def export_dataset(dataset_dir, subdir: Path):
     """Crea un CSV con todos los elementos del subdirectorio."""
-    dataset_path = DATASETS_DIR / f"{subdir.name}.csv"
+    dataset_path = dataset_dir / f"{subdir.name}.csv"
     rows = []
     for p in subdir.rglob("*"):
         info = collect_info(p)
@@ -41,23 +38,5 @@ def export_dataset(subdir: Path):
             writer = csv.DictWriter(f, fieldnames=rows[0].keys())
             writer.writeheader()
             writer.writerows(rows)
-        print(f"🧾 Dataset generado: {dataset_path}")
     else:
         print(f"⚠️ Sin datos en {subdir}")
-
-def main():
-    if not ROOT_DIR.exists():
-        print(f"❌ No existe el directorio raíz: {ROOT_DIR}")
-        return
-
-    DATASETS_DIR.mkdir(exist_ok=True)
-    print(f"🚀 Generando datasets en {DATASETS_DIR}...\n")
-
-    for subdir in sorted(ROOT_DIR.iterdir()):
-        if subdir.is_dir():
-            export_dataset(subdir)
-
-    print("\n✅ Datasets creados correctamente.")
-
-if __name__ == "__main__":
-    main()

@@ -6,5 +6,8 @@ dist/
 wheels/
 *.egg-info
 
+# Locally generated data
+gamesdb_localdata
+
 # Virtual environments
 .venv
