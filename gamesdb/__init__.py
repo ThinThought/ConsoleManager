@@ -23,6 +23,20 @@ console.print(Panel.fit(
 CONFIG_PATH = resolve_config_path()
 GAMESDB_CONFIG = yaml.safe_load(Path(CONFIG_PATH).read_text(encoding="utf-8"))
 
+
+def _resolve_local_path(path_value: str) -> Path:
+    """Turn a config path into an absolute location under the current HOME."""
+    resolved = Path(path_value).expanduser()
+    if not resolved.is_absolute():
+        resolved = Path.home() / resolved
+    return resolved.resolve()
+
+
+local_path_keys = [k for k in GAMESDB_CONFIG["paths"] if "remote" not in k]
+for key in local_path_keys:
+    absolute_path = _resolve_local_path(GAMESDB_CONFIG["paths"][key])
+    GAMESDB_CONFIG["paths"][key] = str(absolute_path)
+
 TARGET_DIR = Path(GAMESDB_CONFIG["paths"]["target_dir"])
 OUTPUT_DIR = Path(GAMESDB_CONFIG["paths"]["output_dir"])
 DATASETS_DIR = Path(GAMESDB_CONFIG["paths"]["datasets_dir"])

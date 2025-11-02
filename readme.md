@@ -1,9 +1,7 @@
+# GamesDB
 <p align="center">
   <img src="logo.png" alt="GamesDB" width="180">
 </p>
-
-# GamesDB
-
 Utilidades en Python para mantener bibliotecas de ROMs: inserta juegos, normaliza carátulas en miniaturas 256×160 y genera datasets a partir de respaldos de la RG34XX (u otras consolas retro).
 
 ## Instalación rápida

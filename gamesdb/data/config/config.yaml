@@ -7,15 +7,14 @@ server:
   pass: root
 
 paths:
-  target_dir: .
-  output_dir: ./gamesdb_localdata
-  artifacts_dir: ./gamesdb_localdata/artifacts
-  datasets_dir: ./gamesdb_localdata/db
-  sdcard_backup_dir: ./gamesdb_localdata/system_backups
-  roms_dir: ./gamesdb_localdata/system_backups/latest/Roms
-  games_to_include_dir: ./gamesdb_localdata/games_to_include
+  target_dir: ~/gamesdb_localdata/system_backups/latest
+  output_dir: ~/gamesdb_localdata
+  artifacts_dir: ~/gamesdb_localdata/artifacts
+  datasets_dir: ~/gamesdb_localdata/db
+  sdcard_backup_dir: ~/gamesdb_localdata/system_backups
+  roms_dir: ~/gamesdb_localdata/system_backups/latest/Roms
+  games_to_include_dir: ~/gamesdb_localdata/games_to_include
   backup_remote_sd_dir: /mnt/sdcard
   backup_remote_mmc_dir: /mnt/mmc
-
 
 
