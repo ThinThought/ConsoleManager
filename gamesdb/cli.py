@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Command-line entry point for GamesDB helper utilities."""
 
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
 import subprocess
 
 import gamesdb
 from gamesdb.get_paths import get_paths
+from gamesdb.get_games import iter_reindexed_games
 from gamesdb.tree_to_csv_datasets import export_dataset
-from gamesdb.backup_ops import run_backup, restore_backup
+from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
+from gamesdb.thumbnailer import make_thumbnail
+from gamesdb.push_games import push_games
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
@@ -16,9 +21,9 @@ from rich.progress import track
 console = Console()
 
 
-def run_paths_command():
+def run_paths_command() -> None:
     """Generate a full path listing under TARGET_DIR."""
-    output_txt = Path(gamesdb.GAMESDB_CONFIG['paths']['artifacts_dir']) / "paths.txt"
+    output_txt = Path(gamesdb.GAMESDB_CONFIG["paths"]["artifacts_dir"]) / "paths.txt"
     gamesdb.OUTPUT_DIR.parent.mkdir(parents=True, exist_ok=True)
 
     console.print(Panel.fit(
@@ -28,12 +33,12 @@ def run_paths_command():
     console.print(f"[yellow]📂 Root:[/yellow] {gamesdb.OUTPUT_DIR}")
     console.print(f"[yellow]📝 Output:[/yellow] {output_txt}")
 
-    target_dir = Path(gamesdb.GAMESDB_CONFIG['paths']['output_dir'])
+    target_dir = Path(gamesdb.GAMESDB_CONFIG["paths"]["output_dir"])
     get_paths(target_dir=target_dir, output=output_txt)
     console.print(f"[green]✅ Path index created at:[/green] {output_txt}")
 
 
-def run_datasets_command(target: Path | None, dataset_dir: Path | None):
+def run_datasets_command(target: Path | None, dataset_dir: Path | None) -> None:
     """Export CSV datasets for each subdirectory."""
     target_dir = target or gamesdb.TARGET_DIR
     datasets_dir = dataset_dir or gamesdb.DATASETS_DIR
@@ -58,7 +63,7 @@ def run_datasets_command(target: Path | None, dataset_dir: Path | None):
     ))
 
 
-def run_ping_command(host_override: str | None, count: int):
+def run_ping_command(host_override: str | None, count: int) -> None:
     """Ping the configured server (or override) to validate connectivity."""
     server_cfg = gamesdb.GAMESDB_CONFIG["server"]
     host = host_override or server_cfg.get("ip") or server_cfg["name"]
@@ -87,11 +92,59 @@ def run_ping_command(host_override: str | None, count: int):
         console.print(result.stdout)
 
 
+def run_thumbnail_command(input_image: Path, output_image: Path) -> None:
+    """Generate a thumbnail using the configured thumbnailer utility."""
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Generating thumbnail[/green]",
+        border_style="cyan"
+    ))
+    console.print(f"[yellow]🖼️ Source:[/yellow] {input_image}")
+    console.print(f"[yellow]💾 Output:[/yellow] {output_image}")
+
+    make_thumbnail(input_image, output_image)
+
+    console.print(Panel.fit(
+        "[bold green]✅ Thumbnail created![/bold green]",
+        border_style="green"
+    ))
+
+
+def run_get_games_command(roms_dir: Path | None, output_dir: Path | None, platforms: list[str] | None) -> None:
+    """Reindex ROMs into per-game folders, copying paired artwork when available."""
+    roms_root = roms_dir or Path(gamesdb.GAMESDB_CONFIG["paths"]["roms_dir"])
+    destination_root = output_dir or Path(gamesdb.GAMESDB_CONFIG["paths"]["games_to_include_dir"])
+    platform_filter = set(platforms) if platforms else None
+
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Reindexing games[/green]",
+        border_style="cyan"
+    ))
+    console.print(f"[yellow]📂 ROM source:[/yellow] {roms_root}")
+    console.print(f"[yellow]📂 Output root:[/yellow] {destination_root}")
+    if platform_filter:
+        console.print(f"[yellow]🎯 Platforms:[/yellow] {', '.join(sorted(platform_filter))}")
+
+    created = list(track(
+        iter_reindexed_games(roms_root, destination_root, platforms=platform_filter),
+        description="[cyan]Copying assets[/cyan]",
+    ))
+
+    console.print(Panel.fit(
+        f"[bold green]✅ Reindexed {len(created)} games[/bold green]",
+        border_style="green"
+    ))
+
+
+def run_push_command() -> None:
+    """Move staged games from games_to_include into the backup tree."""
+    push_games(console=console)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GamesDB utility launcher.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    paths_parser = subparsers.add_parser("paths", help="Generate a paths.txt index.")
+    subparsers.add_parser("paths", help="Generate a paths.txt index.")
 
     datasets_parser = subparsers.add_parser("datasets", help="Export CSV datasets for each subdirectory.")
     datasets_parser.add_argument(
@@ -107,7 +160,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Destination directory for CSV files (defaults to config DATASETS_DIR).",
     )
 
-    subparsers.add_parser("backup", help="Create a dated backup snapshot.")
+    subparsers.add_parser("backup-sd", help="Create a dated backup snapshot.")
+    subparsers.add_parser("backup-system", help="Create a dated backup snapshot.")
 
     ping_parser = subparsers.add_parser("ping", help="Ping the configured server.")
     ping_parser.add_argument(
@@ -129,10 +183,50 @@ def build_parser() -> argparse.ArgumentParser:
         help="Snapshot name to restore (e.g., 2024-11-01).",
     )
 
+    thumbnail_parser = subparsers.add_parser(
+        "thumbnailer",
+        help="Generate a 256x160 transparent-background thumbnail.",
+    )
+    thumbnail_parser.add_argument(
+        "input_image",
+        type=Path,
+        help="Path to the source image.",
+    )
+    thumbnail_parser.add_argument(
+        "output_image",
+        type=Path,
+        help="Where to write the generated PNG thumbnail.",
+    )
+
+    get_games_parser = subparsers.add_parser(
+        "get-games",
+        help="Copy ROMs and associated PNG artwork into per-game folders.",
+    )
+    get_games_parser.add_argument(
+        "--roms-dir",
+        type=Path,
+        help="Override the ROM source directory (defaults to config roms_dir).",
+    )
+    get_games_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Override the destination directory (defaults to config games_to_include_dir).",
+    )
+    get_games_parser.add_argument(
+        "--platform",
+        action="append",
+        help="Limit processing to a specific platform (can be passed multiple times).",
+    )
+
+    subparsers.add_parser(
+        "push",
+        help="Insertar juegos pendientes de games_to_include en el backup.",
+    )
+
     return parser
 
 
-def main():
+def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
@@ -140,12 +234,20 @@ def main():
         run_paths_command()
     elif args.command == "datasets":
         run_datasets_command(args.target, args.datasets_dir)
-    elif args.command == "backup":
-        run_backup()
+    elif args.command == "backup-sd":
+        run_sd_backup()
+    elif args.command == "backup-system":
+        run_systems_backup()
     elif args.command == "ping":
         run_ping_command(args.host, args.count)
     elif args.command == "restore":
-        restore_backup(args.snapshot)
+        restore_sd_backup(args.snapshot)
+    elif args.command == "thumbnailer":
+        run_thumbnail_command(args.input_image, args.output_image)
+    elif args.command == "get-games":
+        run_get_games_command(args.roms_dir, args.output_dir, args.platform)
+    elif args.command == "push":
+        run_push_command()
     else:
         parser.error(f"Unknown command {args.command}")
 
