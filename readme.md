@@ -36,7 +36,7 @@ El script `gamesdb` reúne los flujos diarios:
 ## Desarrollo y pruebas
 
 ```bash
-uv run pytest gamesdb_tests/tests.py -vv
+uv run pytest gamesdb_tests/tests.py -v
 ```
 
 Los tests crean directorios temporales y dependen de la configuración cargada en `config.yaml`.
