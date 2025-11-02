@@ -10,7 +10,6 @@ Utilidades en Python para mantener bibliotecas de ROMs: inserta juegos, normaliz
 
 ```bash
 uv pip install .
-uv sync
 ```
 
 `uv` instala dependencias bloqueadas y permite ejecutar cualquier comando con `uv run`.
@@ -37,8 +36,7 @@ El script `gamesdb` reúne los flujos diarios:
 ## Desarrollo y pruebas
 
 ```bash
-uv sync
-UV_CACHE_DIR=$(pwd)/.uv-cache uv run pytest gamesdb_tests
+uv run pytest gamesdb_tests/tests.py -v
 ```
 
 Los tests crean directorios temporales y dependen de la configuración cargada en `config.yaml`.
