@@ -7,6 +7,7 @@ import argparse
 from pathlib import Path
 import subprocess
 
+import yaml
 import gamesdb
 from gamesdb.get_paths import get_paths
 from gamesdb.get_games import iter_reindexed_games
@@ -14,6 +15,7 @@ from gamesdb.tree_to_csv_datasets import export_dataset
 from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
 from gamesdb.thumbnailer import make_thumbnail
 from gamesdb.push_games import push_games
+from gamesdb.config_editor import set_config_value, ConfigUpdateResult, resolve_config_path
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
@@ -139,6 +141,51 @@ def run_push_command() -> None:
     """Move staged games from games_to_include into the backup tree."""
     push_games(console=console)
 
+def _format_value_for_display(value: object) -> str:
+    return yaml.safe_dump(value, sort_keys=False, default_flow_style=False).strip()
+
+
+def _sync_runtime_config(update_result: ConfigUpdateResult) -> None:
+    gamesdb.CONFIG_PATH = Path(update_result.config_path)
+    gamesdb.GAMESDB_CONFIG = update_result.config
+    paths = update_result.config.get("paths", {})
+    if isinstance(paths, dict):
+        if "target_dir" in paths:
+            gamesdb.TARGET_DIR = Path(paths["target_dir"])
+        if "output_dir" in paths:
+            gamesdb.OUTPUT_DIR = Path(paths["output_dir"])
+        if "datasets_dir" in paths:
+            gamesdb.DATASETS_DIR = Path(paths["datasets_dir"])
+        local_paths = [
+            Path(p) for key, p in paths.items() if "remote" not in key and isinstance(p, str)
+        ]
+        gamesdb.setup_dirs(local_paths)
+
+
+def run_config_set_command(key: str, value: str, config_path: Path | None) -> None:
+    """Update a YAML configuration value."""
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Updating configuration[/green]",
+        border_style="cyan"
+    ))
+    resolved_path = resolve_config_path(config_path)
+    console.print(f"[yellow]📄 Config file:[/yellow] {resolved_path}")
+    console.print(f"[yellow]🔑 Key:[/yellow] {key}")
+    try:
+        update_result = set_config_value(key, value, config_path=resolved_path)
+    except (KeyError, ValueError) as exc:
+        console.print(f"[red]❌ {exc}[/red]")
+        raise SystemExit(1) from exc
+
+    _sync_runtime_config(update_result)
+
+    console.print(f"[yellow]🪄 Old:[/yellow] {_format_value_for_display(update_result.old_value)}")
+    console.print(f"[yellow]✅ New:[/yellow] {_format_value_for_display(update_result.new_value)}")
+    console.print(Panel.fit(
+        "[bold green]Configuration saved[/bold green]",
+        border_style="green"
+    ))
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GamesDB utility launcher.")
@@ -223,6 +270,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Insertar juegos pendientes de games_to_include en el backup.",
     )
 
+    config_parser = subparsers.add_parser("config", help="Inspect or modify configuration.")
+    config_parser.add_argument(
+        "--config",
+        type=Path,
+        help="Override the config.yaml path (defaults to packaged config or env override).",
+    )
+    config_subparsers = config_parser.add_subparsers(dest="config_command", required=True)
+    config_set_parser = config_subparsers.add_parser("set", help="Update a configuration value.")
+    config_set_parser.add_argument(
+        "key",
+        help="Dot-separated path to the configuration key (e.g., paths.target_dir).",
+    )
+    config_set_parser.add_argument(
+        "value",
+        help="New value expressed as a YAML literal.",
+    )
+
     return parser
 
 
@@ -248,6 +312,11 @@ def main() -> None:
         run_get_games_command(args.roms_dir, args.output_dir, args.platform)
     elif args.command == "push":
         run_push_command()
+    elif args.command == "config":
+        if args.config_command == "set":
+            run_config_set_command(args.key, args.value, args.config)
+        else:
+            parser.error(f"Unknown config subcommand {args.config_command}")
     else:
         parser.error(f"Unknown command {args.command}")
 

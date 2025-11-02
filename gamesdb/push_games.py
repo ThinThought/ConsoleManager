@@ -363,7 +363,11 @@ def push_games(
             elif existing_covers:
                 source_cover = existing_covers[0]
                 if source_cover.exists():
-                    source_cover.rename(dest_cover)
+                    try:
+                        make_thumbnail(source_cover, dest_cover)
+                    except Exception as exc:  # pragma: no cover
+                        console.print(f"[yellow]⚠️ No se generó miniatura para {source_cover}: {exc}[/yellow]")
+                        shutil.copy2(source_cover, dest_cover)
                     retained_cover = dest_cover
                 else:
                     retained_cover = None

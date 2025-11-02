@@ -3,11 +3,13 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from pathlib import Path
 import yaml
-from importlib.resources import files
 
-def setup_dirs(path_list: list[Path] = None):
+from .config_editor import resolve_config_path
+
+
+def setup_dirs(path_list: list[Path] | None = None):
     """Ensure required directories exist."""
-    for d in path_list:
+    for d in path_list or []:
         d.mkdir(parents=True, exist_ok=True)
 
 
@@ -18,9 +20,8 @@ console.print(Panel.fit(
     border_style="cyan"
 ))
 
-config_path = files("gamesdb.data.config").joinpath("config.yaml")
-
-GAMESDB_CONFIG = yaml.safe_load(config_path.read_text())
+CONFIG_PATH = resolve_config_path()
+GAMESDB_CONFIG = yaml.safe_load(Path(CONFIG_PATH).read_text(encoding="utf-8"))
 
 TARGET_DIR = Path(GAMESDB_CONFIG["paths"]["target_dir"])
 OUTPUT_DIR = Path(GAMESDB_CONFIG["paths"]["output_dir"])
