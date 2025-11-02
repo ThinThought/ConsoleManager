@@ -320,11 +320,19 @@ def push_games(
             _cleanup_platform_directory(platform_dir)
             cleaned_platforms.add(platform_dir)
 
+        cover_matches = _remove_existing_slug(
+            platform_dir,
+            images_dir,
+            slug,
+            preserve_index=explicit_index,
+        )
+
         suffix = rom_path.suffix.lower()
         if explicit_index is not None:
             dest_index = explicit_index
             dest_basename = f"{dest_index:03d}_{slug}"
             existing_covers = _remove_existing_index(platform_dir, images_dir, dest_index)
+            existing_covers.extend(cover_matches)
             dest_rom = platform_dir / f"{dest_basename}{suffix}"
         else:
             dest_index = _next_index_for_platform(platform_dir)
@@ -334,7 +342,7 @@ def push_games(
                 dest_index += 1
                 dest_basename = f"{dest_index:03d}_{slug}"
                 dest_rom = platform_dir / f"{dest_basename}{suffix}"
-            existing_covers = []
+            existing_covers = cover_matches
 
         shutil.copy2(rom_path, dest_rom)
 
@@ -349,19 +357,21 @@ def push_games(
                 if cover.exists() and cover != dest_cover:
                     cover.unlink()
         else:
-            if explicit_index is not None:
-                dest_cover = images_dir / f"{dest_basename}.png"
-                if dest_cover.exists():
-                    retained_cover = dest_cover
-                elif existing_covers:
-                    source_cover = existing_covers[0]
+            dest_cover = images_dir / f"{dest_basename}.png"
+            if dest_cover.exists():
+                retained_cover = dest_cover
+            elif existing_covers:
+                source_cover = existing_covers[0]
+                if source_cover.exists():
                     source_cover.rename(dest_cover)
                     retained_cover = dest_cover
                 else:
                     retained_cover = None
-                for cover in existing_covers:
-                    if cover.exists() and cover != retained_cover:
-                        cover.unlink()
+            else:
+                retained_cover = None
+            for cover in existing_covers:
+                if cover.exists() and cover != retained_cover:
+                    cover.unlink()
 
         shutil.rmtree(folder)
         console.print(f"[green]✅ {folder.name} → {platform}/{dest_rom.name}[/green]")
@@ -408,3 +418,45 @@ def _remove_existing_index(platform_dir: Path, images_dir: Path, index: int) -> 
     if images_dir.exists():
         existing_covers = list(images_dir.glob(f"{prefix}*.png"))
     return existing_covers
+
+
+def _remove_existing_slug(
+    platform_dir: Path,
+    images_dir: Path,
+    slug: str,
+    preserve_index: int | None,
+) -> list[Path]:
+    """Remove ROM entries that share the same slug but different index.
+
+    Returns any matching cover paths so callers can decide whether to reuse or delete
+    them after reindexing.
+    """
+
+    matched_covers: list[Path] = []
+
+    for entry in list(platform_dir.iterdir()):
+        if entry == images_dir:
+            continue
+
+        name = entry.stem if entry.is_file() else entry.name
+        index, base_name = _extract_index_components(name)
+        if slugify(base_name) != slug:
+            continue
+        if preserve_index is not None and index == preserve_index:
+            continue
+
+        if entry.is_dir():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+
+    if images_dir.exists():
+        for cover in images_dir.glob("*.png"):
+            index, base_name = _extract_index_components(cover.stem)
+            if slugify(base_name) != slug:
+                continue
+            if preserve_index is not None and index == preserve_index:
+                continue
+            matched_covers.append(cover)
+
+    return matched_covers

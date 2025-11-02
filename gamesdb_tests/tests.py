@@ -274,3 +274,48 @@ def test_push_games_overwrites_numbered_rom(tmp_path):
     thumbnail = cv2.imread(str(expected_cover), cv2.IMREAD_UNCHANGED)
     assert thumbnail.shape[:2] == (160, 256)
     assert thumbnail[..., :3].mean() > 100
+
+
+def test_push_games_removes_previous_slug_entries(tmp_path):
+    """Ensure push_games removes old ROMs that share the same slug with new numbering."""
+    roms_root = tmp_path / "Roms"
+    platform_dir = roms_root / "N64"
+    images_dir = platform_dir / "Imgs"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    old_rom = platform_dir / "050_Banjo_Kazooie.z64"
+    old_rom.write_bytes(b"OLD")
+
+    old_cover = images_dir / "050_Banjo_Kazooie.png"
+    cover_img = np.full((60, 40, 3), 90, dtype=np.uint8)
+    success, data = cv2.imencode(".png", cover_img)
+    assert success
+    old_cover.write_bytes(data.tobytes())
+
+    staging_root = tmp_path / "games_to_include"
+    staged_dir = staging_root / "001_Banjo_Kazooie"
+    staged_dir.mkdir(parents=True, exist_ok=True)
+
+    staged_rom = staged_dir / "001_Banjo_Kazooie.z64"
+    staged_rom.write_bytes(b"NEW")
+
+    inserted = push_games(
+        staging_dir=staging_root,
+        roms_root=roms_root,
+        interactive=False,
+        console=Console(record=True),
+    )
+
+    dest_rom = platform_dir / "001_Banjo_Kazooie.z64"
+    dest_cover = images_dir / "001_Banjo_Kazooie.png"
+
+    assert inserted == [dest_rom]
+    assert dest_rom.exists()
+    assert dest_rom.read_bytes() == b"NEW"
+
+    assert not old_rom.exists()
+    assert dest_cover.exists()
+    assert not old_cover.exists()
+
+    thumb = cv2.imread(str(dest_cover), cv2.IMREAD_UNCHANGED)
+    assert thumb.shape[:2] == (160, 256)
