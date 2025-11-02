@@ -13,6 +13,7 @@ from gamesdb.get_games import iter_reindexed_games
 from gamesdb.tree_to_csv_datasets import export_dataset
 from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
 from gamesdb.thumbnailer import make_thumbnail
+from gamesdb.push_games import push_games
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
@@ -134,6 +135,11 @@ def run_get_games_command(roms_dir: Path | None, output_dir: Path | None, platfo
     ))
 
 
+def run_push_command() -> None:
+    """Move staged games from games_to_include into the backup tree."""
+    push_games(console=console)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GamesDB utility launcher.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -212,6 +218,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Limit processing to a specific platform (can be passed multiple times).",
     )
 
+    subparsers.add_parser(
+        "push",
+        help="Insertar juegos pendientes de games_to_include en el backup.",
+    )
+
     return parser
 
 
@@ -235,6 +246,8 @@ def main() -> None:
         run_thumbnail_command(args.input_image, args.output_image)
     elif args.command == "get-games":
         run_get_games_command(args.roms_dir, args.output_dir, args.platform)
+    elif args.command == "push":
+        run_push_command()
     else:
         parser.error(f"Unknown command {args.command}")
 

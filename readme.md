@@ -34,52 +34,29 @@ Edita `gamesdb/data/config/config.yaml` antes de ejecutar cualquier script:
 
 Asegúrate de tener montada la SD en `/mnt/sdcard` y contar con `rsync` y `sshpass` instalados.
 
-## Uso básico
-
-El paquete está pensado para ser importado desde tus propios scripts:
-
-```python
-from gamesdb import TARGET_DIR, OUTPUT_DIR, DATASETS_DIR
-from gamesdb.get_paths import get_paths
-from gamesdb.tree_to_csv_datasets import export_dataset
-from gamesdb.backup_ops import run_backup, restore_backup
-
-# Generar listado de rutas
-get_paths(TARGET_DIR, OUTPUT_DIR / "paths.txt")
-
-# Exportar datasets CSV para cada subdirectorio
-for subdir in TARGET_DIR.iterdir():
-    if subdir.is_dir():
-        export_dataset(DATASETS_DIR, subdir)
-
-# Crear snapshot diario y restaurar uno existente
-run_backup()
-restore_backup("2024-11-01")
-```
-
-Cada helper respeta la configuración cargada en `gamesdb/data/config/config.yaml`, por lo que no necesitas pasar rutas manualmente.
-
 ## CLI oficial
 
 Desde la versión actual se expone un `console_script` llamado `gamesdb` que agrupa los mismos flujos operativos. Si estás dentro del repo, invócalo con `uv run` para reutilizar el entorno sincronizado:
 
 ```bash
-# Generar listado de rutas
-uv run gamesdb paths
-# Exportar datasets CSV
-uv run gamesdb datasets 
-# Operaciones de backup y restauración
-uv run gamesdb backup-sd
-# Reindexar juegos y generar miniaturas (incluye reinserción desde games_to_include)
-uv run gamesdb get-games
-# Prueba de conectividad
+# Prueba de conectividad con el dispositivo
 uv run gamesdb ping --count 2
-```
 
-También puedes invocarlo sin instalar usando el módulo directamente:
+# Generar/actualizar respaldo local de la SD
+uv run gamesdb backup-sd
 
-```bash
-uv run python -m gamesdb.cli get-games
+# Regenerar índices y datasets
+uv run gamesdb paths
+uv run gamesdb datasets
+
+# Reindexar juegos (incluye reinserción automática desde games_to_include)
+uv run gamesdb get-games
+
+# Insertar juegos pendientes de games_to_include en el backup
+uv run gamesdb push
+
+# Restaurar el snapshot más reciente al dispositivo remoto
+uv run gamesdb restore latest
 ```
 
 Internamente el comando `get-games`:
@@ -87,6 +64,8 @@ Internamente el comando `get-games`:
 - Normaliza los nombres de las carpetas como `NNN_Titulo`.
 - Copia ROMs y carátulas desde el backup (`paths.roms_dir`) y genera miniaturas 256x160.
 - Detecta carpetas creadas a mano en `games_to_include`, reinserta su contenido en la plataforma correcta (usando `emu_extensions.yaml`) y borra la carpeta original tras reindexar.
+
+El comando `push` se apoya en `emu_extensions.yaml` para sugerir la plataforma según la extensión del ROM. Si hay ambigüedades, mostrará un listado y solicitará tu elección antes de copiar la ROM y su carátula al respaldo (`paths.roms_dir`) y limpiar la carpeta de staging. A continuación ejecuta `uv run gamesdb get-games` para regenerar el índice numerado y sincronizar las miniaturas.
 
 ## Desarrollo y pruebas
 

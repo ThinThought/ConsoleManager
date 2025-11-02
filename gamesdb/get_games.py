@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from importlib.resources import files
 from pathlib import Path
 import re
 import shutil
 
-import yaml
-
 from gamesdb.thumbnailer import make_thumbnail
+from gamesdb.naming import slugify
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,19 +26,6 @@ PREFIX_RE = re.compile(r"^(?P<num>\d{3})[\s_-]+(?P<name>.+)$")
 FOLDER_NAME_RE = re.compile(r"^\d{3}_.+")
 
 
-def _load_extension_mapping() -> dict[str, str]:
-    config_path = files("gamesdb.data.config").joinpath("emu_extensions.yaml")
-    data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    mapping: dict[str, str] = {}
-    for platform, extensions in data.get("emu_extensions", {}).items():
-        for ext in extensions:
-            mapping[ext.lower()] = platform
-    return mapping
-
-
-EXTENSION_TO_PLATFORM = _load_extension_mapping()
-
-
 def _normalize_stem(stem: str) -> str:
     """Normalize a file stem to compare loosely."""
     return "".join(ch.lower() for ch in stem if ch.isalnum())
@@ -51,14 +36,6 @@ def _extract_base_name(stem: str) -> str:
     match = PREFIX_RE.match(stem)
     candidate = match.group("name") if match else stem
     return candidate.strip().strip("_- ")
-
-
-def _slugify(name: str) -> str:
-    """Convert base names to filesystem-friendly folder slugs."""
-    parts = [p for p in re.split(r"[^A-Za-z0-9]+", name) if p]
-    if not parts:
-        return "Game"
-    return "_".join(part.capitalize() for part in parts)
 
 
 def _build_image_lookup(images_dir: Path) -> dict[str, Path]:
@@ -95,83 +72,6 @@ def _match_image(rom_stem: str, base_name: str, lookup: dict[str, Path]) -> Path
             return image_path
 
     return None
-
-
-def _next_index_for_platform(platform_dir: Path) -> int:
-    """Return the next numeric prefix for ROM files inside platform_dir."""
-    max_index = 0
-    if not platform_dir.exists():
-        return 1
-
-    for item in platform_dir.iterdir():
-        if not item.is_file():
-            continue
-        match = PREFIX_RE.match(item.stem)
-        if match:
-            try:
-                max_index = max(max_index, int(match.group("num")))
-            except ValueError:
-                continue
-    return max_index + 1
-
-
-def _determine_platform(rom_file: Path) -> str | None:
-    """Return the platform name for a ROM file based on extension mapping."""
-    return EXTENSION_TO_PLATFORM.get(rom_file.suffix.lower())
-
-
-def _copy_manual_image(manual_dir: Path, rom_dest: Path, platform_dir: Path) -> None:
-    images_dir = platform_dir / "Imgs"
-    images_dir.mkdir(parents=True, exist_ok=True)
-
-    image_source = None
-    for candidate in manual_dir.iterdir():
-        if candidate.suffix.lower() in {".png", ".jpg", ".jpeg"} and candidate.is_file():
-            image_source = candidate
-            break
-
-    if not image_source:
-        return
-
-    destination_image = images_dir / f"{rom_dest.stem}.png"
-    try:
-        make_thumbnail(image_source, destination_image)
-    except Exception as exc:
-        print(f"⚠️ Unable to convert {image_source} to PNG: {exc}")
-        shutil.copy2(image_source, destination_image)
-
-
-def _process_manual_insertions(destination_root: Path, roms_root: Path) -> None:
-    """Handle manually added game folders inside the destination root."""
-    for manual_dir in sorted(destination_root.iterdir()):
-        if not manual_dir.is_dir():
-            continue
-        if FOLDER_NAME_RE.match(manual_dir.name):
-            continue
-
-        rom_candidates = [p for p in manual_dir.iterdir() if p.is_file()]
-        rom_file = next((p for p in rom_candidates if _determine_platform(p)), None)
-        if not rom_file:
-            continue
-
-        platform_name = _determine_platform(rom_file)
-        if not platform_name:
-            continue
-
-        platform_dir = roms_root / platform_name
-        platform_dir.mkdir(parents=True, exist_ok=True)
-
-        next_index = _next_index_for_platform(platform_dir)
-        slug = _slugify(_extract_base_name(rom_file.stem))
-        extension = rom_file.suffix.lower()
-        target_rom = platform_dir / f"{next_index:03d}_{slug}{extension}"
-        while target_rom.exists():
-            next_index += 1
-            target_rom = platform_dir / f"{next_index:03d}_{slug}{extension}"
-
-        shutil.copy2(rom_file, target_rom)
-        _copy_manual_image(manual_dir, target_rom, platform_dir)
-        shutil.rmtree(manual_dir)
 
 
 def gather_games(roms_root: Path, platforms: set[str] | None = None) -> list[GameAsset]:
@@ -215,13 +115,12 @@ def iter_reindexed_games(
 ) -> Iterator[Path]:
     """Yield the target directory for each reindexed game."""
     destination_root.mkdir(parents=True, exist_ok=True)
-    _process_manual_insertions(destination_root, roms_root)
 
     assets = gather_games(roms_root, platforms=platforms)
     assets.sort(key=lambda a: (a.base_name.lower(), a.platform.lower(), a.rom_path.name.lower()))
 
     planned: list[tuple[str, GameAsset]] = [
-        (f"{index:03d}_{_slugify(asset.base_name)}", asset)
+        (f"{index:03d}_{slugify(asset.base_name)}", asset)
         for index, asset in enumerate(assets, start=1)
     ]
     planned_names = {folder for folder, _ in planned}
@@ -237,17 +136,17 @@ def iter_reindexed_games(
             shutil.rmtree(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        shutil.copy2(asset.rom_path, target_dir / asset.rom_path.name)
+        rom_extension = asset.rom_path.suffix
+        destination_rom = target_dir / f"{folder_name}{rom_extension}"
+        shutil.copy2(asset.rom_path, destination_rom)
 
         if asset.image_path and asset.image_path.exists():
-            copied_image = target_dir / asset.image_path.name
-            shutil.copy2(asset.image_path, copied_image)
+            destination_image = target_dir / f"{folder_name}.png"
             try:
-                make_thumbnail(copied_image, copied_image)
+                make_thumbnail(asset.image_path, destination_image)
             except Exception as exc:  # pragma: no cover - logged upstream if needed
-                # If thumbnail creation fails, leave the original image in place.
-                # Consumers can inspect/replace manually.
-                print(f"⚠️ Unable to thumbnail {copied_image}: {exc}")
+                print(f"⚠️ Unable to thumbnail {asset.image_path}: {exc}")
+                shutil.copy2(asset.image_path, destination_image)
 
         yield target_dir
 
