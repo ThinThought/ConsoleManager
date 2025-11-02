@@ -12,6 +12,7 @@ from gamesdb.tree_to_csv_datasets import export_dataset
 from gamesdb.cli import build_parser
 from gamesdb.get_games import get_games
 from gamesdb.push_games import push_games
+from gamesdb.config_editor import set_config_value, load_config, resolve_config_path
 
 
 TARGET_DIR = gamesdb.TARGET_DIR
@@ -24,6 +25,45 @@ def test_generate_paths():
     output_file = OUTPUT_DIR / "paths.txt"
     get_paths(TARGET_DIR, output_file)
     assert output_file.exists(), "❌ paths.txt was not created"
+
+
+def test_set_config_value_updates_custom_file(tmp_path):
+    """Ensure config_editor can update a user-specified config file."""
+    custom_config = tmp_path / "config.yaml"
+    custom_config.write_text(
+        """\
+server:
+  name: test-host
+  ip: 10.0.0.1
+  port: 22
+  user: root
+  pass: root
+paths:
+  target_dir: /tmp/old_target
+  output_dir: /tmp/out
+  datasets_dir: /tmp/db
+""",
+        encoding="utf-8",
+    )
+
+    result = set_config_value("paths.target_dir", '"/tmp/new_target"', config_path=custom_config)
+
+    assert result.old_value == "/tmp/old_target"
+    assert result.new_value == "/tmp/new_target"
+    assert result.config_path == custom_config
+
+    reloaded = load_config(custom_config)
+    assert reloaded["paths"]["target_dir"] == "/tmp/new_target"
+
+
+def test_resolve_config_path_prefers_env_override(tmp_path, monkeypatch):
+    """Ensure resolve_config_path honors GAMESDB_CONFIG_PATH."""
+    custom_config = tmp_path / "alt-config.yaml"
+    custom_config.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GAMESDB_CONFIG_PATH", str(custom_config))
+
+    resolved = resolve_config_path()
+    assert resolved == custom_config
 
 def test_export_datasets():
     """Test dataset export for all subdirectories."""
