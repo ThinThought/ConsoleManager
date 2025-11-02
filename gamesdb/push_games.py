@@ -19,8 +19,29 @@ from gamesdb.thumbnailer import make_thumbnail
 PromptFn = Callable[[str], str]
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+ROM_EXTENSIONS = {ext.lower() for ext in EXTENSION_PLATFORMS.keys()}
 INDEXED_DIR_PATTERN = re.compile(r"^\d{3}_.+")
 INDEXED_NAME_PATTERN = re.compile(r"^\d{3}_")
+INDEX_PREFIX_RE = re.compile(r"^(?P<index>\d{3})[\s_-]+(?P<name>.+)$")
+
+
+def _normalize_token(value: str) -> str:
+    return "".join(ch.lower() for ch in value if ch.isalnum())
+
+
+def _strip_index_prefix(name: str) -> str:
+    match = INDEX_PREFIX_RE.match(name)
+    return match.group("name") if match else name
+
+
+def _extract_index_components(value: str) -> tuple[int | None, str]:
+    match = INDEX_PREFIX_RE.match(value)
+    if not match:
+        return None, value
+    try:
+        return int(match.group("index")), match.group("name")
+    except ValueError:  # pragma: no cover - defensive, regex guards digits
+        return None, match.group("name")
 
 
 def _list_staged_directories(staging_dir: Path) -> list[Path]:
@@ -28,7 +49,25 @@ def _list_staged_directories(staging_dir: Path) -> list[Path]:
         return []
     dirs = []
     for child in sorted(staging_dir.iterdir()):
-        if child.is_dir() and not INDEXED_DIR_PATTERN.match(child.name):
+        if not child.is_dir():
+            continue
+
+        if INDEXED_DIR_PATTERN.match(child.name):
+            has_cover = False
+            has_rom = False
+            for inner in child.iterdir():
+                if not inner.is_file():
+                    continue
+                suffix = inner.suffix.lower()
+                if suffix in IMAGE_EXTENSIONS:
+                    has_cover = True
+                elif suffix in ROM_EXTENSIONS:
+                    has_rom = True
+                if has_cover and has_rom:
+                    break
+            if has_cover or has_rom:
+                dirs.append(child)
+        else:
             dirs.append(child)
     return dirs
 
@@ -131,6 +170,76 @@ def _select_cover(directory: Path, console: Console, prompt: PromptFn, interacti
         console.print("[red]Entrada inválida[/red]")
 
 
+def _update_existing_game_cover(
+    folder: Path,
+    cover_path: Path,
+    roms_root: Path,
+    console: Console,
+) -> tuple[Path, Path] | None:
+    if not cover_path.exists():
+        return None
+
+    candidate_tokens = {
+        folder.name,
+        cover_path.stem,
+        _strip_index_prefix(folder.name),
+        _strip_index_prefix(cover_path.stem),
+        slugify(folder.name),
+        slugify(_strip_index_prefix(folder.name)),
+        slugify(cover_path.stem),
+        slugify(_strip_index_prefix(cover_path.stem)),
+    }
+    candidate_tokens = {token for token in candidate_tokens if token}
+    lower_tokens = {token.lower() for token in candidate_tokens}
+    normalized_tokens = {_normalize_token(token) for token in candidate_tokens}
+
+    best_match: Path | None = None
+    best_score = 0
+
+    for platform_dir in sorted(p for p in roms_root.iterdir() if p.is_dir()):
+        for rom_file in sorted(platform_dir.iterdir()):
+            if not rom_file.is_file():
+                continue
+            suffix = rom_file.suffix.lower()
+            if suffix not in ROM_EXTENSIONS:
+                continue
+
+            rom_stem = rom_file.stem
+            stripped_rom = _strip_index_prefix(rom_stem)
+            slug_rom = slugify(stripped_rom)
+            normalized_rom = _normalize_token(rom_stem)
+            normalized_stripped = _normalize_token(stripped_rom)
+
+            score = 0
+            if rom_stem in candidate_tokens or rom_stem.lower() in lower_tokens:
+                score = max(score, 4)
+            if slug_rom in candidate_tokens or slug_rom.lower() in lower_tokens:
+                score = max(score, 3)
+            if normalized_rom in normalized_tokens:
+                score = max(score, 2)
+            if normalized_stripped in normalized_tokens:
+                score = max(score, 1)
+
+            if score > best_score:
+                best_score = score
+                best_match = rom_file
+
+    if best_match is None or best_score == 0:
+        return None
+
+    images_dir = best_match.parent / "Imgs"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    dest_cover = images_dir / f"{best_match.stem}.png"
+
+    try:
+        make_thumbnail(cover_path, dest_cover)
+    except Exception as exc:  # pragma: no cover
+        console.print(f"[yellow]⚠️ No se generó miniatura para {cover_path}: {exc}[/yellow]")
+        shutil.copy2(cover_path, dest_cover)
+
+    return dest_cover, best_match
+
+
 def push_games(
     staging_dir: Path | None = None,
     roms_root: Path | None = None,
@@ -163,14 +272,44 @@ def push_games(
 
     for folder in staged_dirs:
         rom_path = _choose_rom(folder, console, prompt, interactive)
+        cover_path = _select_cover(folder, console, prompt, interactive)
+
         if not rom_path:
-            console.print(f"[yellow]⚠️ Saltando {folder.name}; no se seleccionó ROM.[/yellow]")
+            if cover_path:
+                updated = _update_existing_game_cover(folder, cover_path, roms_root, console)
+                if updated:
+                    dest_cover, rom_file = updated
+                    shutil.rmtree(folder)
+                    console.print(
+                        f"[green]🎨 {folder.name} → {rom_file.parent.name}/{dest_cover.name}[/green]"
+                    )
+                    inserted.append(dest_cover)
+                    continue
+                console.print(
+                    f"[yellow]⚠️ {folder.name}: no se encontró juego coincidiente para actualizar portada.[/yellow]"
+                )
+            else:
+                console.print(f"[yellow]⚠️ Saltando {folder.name}; no se seleccionó ROM.[/yellow]")
             continue
 
         platform = _choose_platform(rom_path.suffix, console, prompt, interactive)
         if not platform:
             console.print(f"[yellow]⚠️ {rom_path.name}: no se pudo determinar plataforma.[/yellow]")
             continue
+
+        folder_index, folder_base = _extract_index_components(folder.name)
+        rom_index, rom_base = _extract_index_components(rom_path.stem)
+        if rom_index is not None:
+            explicit_index = rom_index
+            slug_source = rom_base
+        elif folder_index is not None:
+            explicit_index = folder_index
+            slug_source = folder_base
+        else:
+            explicit_index = None
+            slug_source = folder.name
+
+        slug = slugify(slug_source)
 
         platform_dir = roms_root / platform
         images_dir = platform_dir / "Imgs"
@@ -181,23 +320,48 @@ def push_games(
             _cleanup_platform_directory(platform_dir)
             cleaned_platforms.add(platform_dir)
 
-        slug = slugify(folder.name)
-        next_index = _next_index_for_platform(platform_dir)
-        dest_rom = platform_dir / f"{next_index:03d}_{slug}{rom_path.suffix.lower()}"
-        while dest_rom.exists():
-            next_index += 1
-            dest_rom = platform_dir / f"{next_index:03d}_{slug}{rom_path.suffix.lower()}"
+        suffix = rom_path.suffix.lower()
+        if explicit_index is not None:
+            dest_index = explicit_index
+            dest_basename = f"{dest_index:03d}_{slug}"
+            existing_covers = _remove_existing_index(platform_dir, images_dir, dest_index)
+            dest_rom = platform_dir / f"{dest_basename}{suffix}"
+        else:
+            dest_index = _next_index_for_platform(platform_dir)
+            dest_basename = f"{dest_index:03d}_{slug}"
+            dest_rom = platform_dir / f"{dest_basename}{suffix}"
+            while dest_rom.exists():
+                dest_index += 1
+                dest_basename = f"{dest_index:03d}_{slug}"
+                dest_rom = platform_dir / f"{dest_basename}{suffix}"
+            existing_covers = []
 
         shutil.copy2(rom_path, dest_rom)
 
-        cover_path = _select_cover(folder, console, prompt, interactive)
         if cover_path and cover_path.exists():
-            dest_cover = images_dir / f"{dest_rom.stem}.png"
+            dest_cover = images_dir / f"{dest_basename}.png"
             try:
                 make_thumbnail(cover_path, dest_cover)
             except Exception as exc:  # pragma: no cover
                 console.print(f"[yellow]⚠️ No se generó miniatura para {cover_path}: {exc}[/yellow]")
                 shutil.copy2(cover_path, dest_cover)
+            for cover in existing_covers:
+                if cover.exists() and cover != dest_cover:
+                    cover.unlink()
+        else:
+            if explicit_index is not None:
+                dest_cover = images_dir / f"{dest_basename}.png"
+                if dest_cover.exists():
+                    retained_cover = dest_cover
+                elif existing_covers:
+                    source_cover = existing_covers[0]
+                    source_cover.rename(dest_cover)
+                    retained_cover = dest_cover
+                else:
+                    retained_cover = None
+                for cover in existing_covers:
+                    if cover.exists() and cover != retained_cover:
+                        cover.unlink()
 
         shutil.rmtree(folder)
         console.print(f"[green]✅ {folder.name} → {platform}/{dest_rom.name}[/green]")
@@ -212,6 +376,8 @@ def push_games(
         console.print("[yellow]No se insertaron juegos.[/yellow]")
 
     return inserted
+
+
 def _cleanup_platform_directory(platform_dir: Path) -> None:
     if not platform_dir.exists():
         return
@@ -225,3 +391,20 @@ def _cleanup_platform_directory(platform_dir: Path) -> None:
         elif entry.is_file():
             if not INDEXED_NAME_PATTERN.match(entry.stem):
                 entry.unlink()
+
+
+def _remove_existing_index(platform_dir: Path, images_dir: Path, index: int) -> list[Path]:
+    prefix = f"{index:03d}_"
+    existing_covers: list[Path] = []
+    for entry in list(platform_dir.iterdir()):
+        if entry == images_dir:
+            continue
+        if entry.name.startswith(prefix):
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+
+    if images_dir.exists():
+        existing_covers = list(images_dir.glob(f"{prefix}*.png"))
+    return existing_covers
