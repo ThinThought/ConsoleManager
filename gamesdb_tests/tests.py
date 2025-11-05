@@ -4,12 +4,13 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 from rich.console import Console
 
 import gamesdb
 from gamesdb.get_paths import get_paths
 from gamesdb.tree_to_csv_datasets import export_dataset
-from gamesdb.cli import build_parser
+from gamesdb.cli import build_parser, run_connect_command
 from gamesdb.get_games import get_games
 from gamesdb.push_games import push_games
 from gamesdb.config_editor import set_config_value, load_config, resolve_config_path
@@ -93,6 +94,42 @@ def test_thumbnailer_parser_handles_paths():
     assert args.command == "thumbnailer"
     assert args.input_image == Path("cover.jpg")
     assert args.output_image == Path("out.png")
+
+
+def test_connect_parser_handles_overrides():
+    """Verify connect subcommand parses host/user/port overrides."""
+    parser = build_parser()
+    args = parser.parse_args(["connect", "--host", "10.0.0.5", "--user", "tester", "--port", "2222"])
+    assert args.command == "connect"
+    assert args.host == "10.0.0.5"
+    assert args.user == "tester"
+    assert args.port == 2222
+
+
+def test_run_connect_command_invokes_connector(monkeypatch):
+    """Ensure run_connect_command forwards override arguments to connect_to_device."""
+    recorder = {}
+
+    def fake_connect(*, host=None, user=None, port=None):
+        recorder["args"] = (host, user, port)
+
+    monkeypatch.setattr("gamesdb.cli.connect_to_device", fake_connect)
+
+    run_connect_command("1.2.3.4", "cliuser", 2200)
+    assert recorder["args"] == ("1.2.3.4", "cliuser", 2200)
+
+
+def test_run_connect_command_propagates_failure(monkeypatch):
+    """Ensure SSH failures surface as SystemExit with the original return code."""
+    def fake_connect(*_args, **_kwargs):
+        raise subprocess.CalledProcessError(returncode=7, cmd=["ssh"])
+
+    monkeypatch.setattr("gamesdb.cli.connect_to_device", fake_connect)
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_connect_command("1.2.3.4", "cliuser", 2200)
+
+    assert excinfo.value.code == 7
 
 
 def test_get_games_reindexes_rom_and_png(tmp_path):

@@ -1,9 +1,7 @@
+# Console Manager
 <p align="center">
-  <img src="logo.png" alt="GamesDB" width="180">
+  <img src="logo4.png" alt="GamesDB" />
 </p>
-
-# GamesDB
-
 Utilidades en Python para mantener bibliotecas de ROMs: inserta juegos, normaliza carátulas en miniaturas 256×160 y genera datasets a partir de respaldos de la RG34XX (u otras consolas retro).
 
 ## Instalación rápida
@@ -18,14 +16,18 @@ uv pip install .
 
 Actualiza `gamesdb/data/config/config.yaml` con tus rutas reales:
 
-- `paths.roms_dir`, `paths.games_to_include_dir`, `paths.sdcard_backup_dir`, `paths.artifacts_dir` y `paths.target_dir`.
-- Credenciales del dispositivo en la sección `server`.
+- Las rutas locales apuntan por defecto a `~/gamesdb_localdata/...`. GamesDB expande `~` y convierte cualquier ruta relativa en una dentro de tu `$HOME`, creando los directorios al cargar la configuración.
+- Ajusta `paths.roms_dir`, `paths.games_to_include_dir`, `paths.sdcard_backup_dir`, `paths.artifacts_dir` y `paths.target_dir` si usas otra ubicación.
+- Completa las credenciales del dispositivo en `server`.
+
+> Tip: puedes editar valores desde la CLI con `uv run gamesdb config set paths.target_dir "~/otro/directorio"`. El comando valida la clave, guarda el YAML y recarga la configuración en caliente.
 
 Asegúrate de tener montada la SD (ej. `/mnt/sdcard`) y contar con `rsync` y `sshpass`.
 
 ## CLI principal
 
 El script `gamesdb` reúne los flujos diarios:
+
 
 - `uv run gamesdb ping --count 2`: prueba conectividad antes de copiar datos.
 - `uv run gamesdb push`: procesa staging (`games_to_include`) y genera miniaturas.

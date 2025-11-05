@@ -15,6 +15,7 @@ from gamesdb.tree_to_csv_datasets import export_dataset
 from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
 from gamesdb.thumbnailer import make_thumbnail
 from gamesdb.push_games import push_games
+from gamesdb.connect_gb import connect_to_device
 from gamesdb.config_editor import set_config_value, ConfigUpdateResult, resolve_config_path
 from rich.console import Console
 from rich.panel import Panel
@@ -92,6 +93,48 @@ def run_ping_command(host_override: str | None, count: int) -> None:
     ))
     if result.stdout.strip():
         console.print(result.stdout)
+
+def run_connect_command(host_override: str | None, user_override: str | None, port_override: int | None) -> None:
+    """Open an SSH session against the configured device."""
+    server_cfg = gamesdb.GAMESDB_CONFIG.get("server", {})
+    if not isinstance(server_cfg, dict):
+        console.print("[red]❌ Server configuration is missing.[/red]")
+        raise SystemExit(1)
+
+    host = host_override or server_cfg.get("ip") or server_cfg.get("name")
+    user = user_override or server_cfg.get("user", "root")
+    port = port_override or server_cfg.get("port")
+
+    if not isinstance(host, str) or not host:
+        console.print("[red]❌ No host configured for SSH connection.[/red]")
+        raise SystemExit(1)
+    if not isinstance(user, str) or not user:
+        console.print("[red]❌ No user configured for SSH connection.[/red]")
+        raise SystemExit(1)
+
+    port_display = str(port) if port else "default"
+
+    console.print(Panel.fit(
+        "[bold cyan]🎮 GamesDB[/bold cyan]\n[green]Opening SSH session[/green]",
+        border_style="cyan"
+    ))
+    console.print(f"[yellow]👤 User:[/yellow] {user}")
+    console.print(f"[yellow]📡 Host:[/yellow] {host}")
+    console.print(f"[yellow]🔌 Port:[/yellow] {port_display}")
+
+    try:
+        connect_to_device(host=host_override, user=user_override, port=port_override)
+    except subprocess.CalledProcessError as exc:
+        console.print(Panel.fit(
+            f"[bold red]SSH session exited with code {exc.returncode}[/bold red]",
+            border_style="red"
+        ))
+        raise SystemExit(exc.returncode) from exc
+
+    console.print(Panel.fit(
+        "[bold green]✅ SSH session closed[/bold green]",
+        border_style="green"
+    ))
 
 
 def run_thumbnail_command(input_image: Path, output_image: Path) -> None:
@@ -223,6 +266,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Number of ICMP echo requests to send (default: 1).",
     )
+    connect_parser = subparsers.add_parser("connect", help="Open an SSH shell to the configured device.")
+    connect_parser.add_argument(
+        "--host",
+        "-H",
+        help="Override host/IP to connect (defaults to config).",
+    )
+    connect_parser.add_argument(
+        "--user",
+        "-u",
+        help="Override SSH user (defaults to config).",
+    )
+    connect_parser.add_argument(
+        "--port",
+        "-p",
+        type=int,
+        help="Override SSH port (defaults to config).",
+    )
 
     restore_parser = subparsers.add_parser("restore", help="Restore from a dated snapshot.")
     restore_parser.add_argument(
@@ -304,6 +364,8 @@ def main() -> None:
         run_systems_backup()
     elif args.command == "ping":
         run_ping_command(args.host, args.count)
+    elif args.command == "connect":
+        run_connect_command(args.host, args.user, args.port)
     elif args.command == "restore":
         restore_sd_backup(args.snapshot)
     elif args.command == "thumbnailer":
