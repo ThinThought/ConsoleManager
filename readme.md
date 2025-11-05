@@ -4,14 +4,6 @@
 </div>
 Utilidades en Python para mantener bibliotecas de ROMs: inserta juegos, normaliza carátulas en miniaturas 256×160 y genera datasets a partir de respaldos de la RG34XX (u otras consolas retro).
 
-## Instalación rápida
-
-```bash
-uv pip install .
-```
-
-`uv` instala dependencias bloqueadas y permite ejecutar cualquier comando con `uv run`.
-
 ## Configura primero
 
 Actualiza `gamesdb/data/config/config.yaml` con tus rutas reales:
@@ -24,14 +16,24 @@ Actualiza `gamesdb/data/config/config.yaml` con tus rutas reales:
 
 Asegúrate de tener montada la SD (ej. `/mnt/sdcard`) y contar con `rsync` y `sshpass`.
 
+## Instalación 
+
+```bash
+uv pip install .
+```
+
+`uv` instala dependencias bloqueadas y permite ejecutar cualquier comando con `uv run`.
+
+
 ## CLI principal
 
 El script `gamesdb` reúne los flujos diarios:
 
 
 - `uv run gamesdb ping --count 2`: prueba conectividad antes de copiar datos.
-- `uv run gamesdb push`: procesa staging (`games_to_include`) y genera miniaturas.
-- `uv run gamesdb get-games`: renumera carpetas y replica ROMs/portadas al `target_dir`.
+- `uv run gamesdb connect`: Te conecta por SSH a la consola.
+- `uv run gamesdb get-games`: renumera carpetas y replica ROMs/portadas al `games_to_include`.
+- `uv run gamesdb push`: procesa `games_to_include` y genera miniaturas.
 - `uv run gamesdb paths` y `uv run gamesdb datasets`: refrescan artefactos de navegación.
 - `uv run gamesdb backup-sd` / `uv run gamesdb restore <snapshot>`: gestionan snapshots incrementales.
 
@@ -57,8 +59,3 @@ Los tests crean directorios temporales y dependen de la configuración cargada e
 - `test_push_games_overwrites_numbered_rom`: `push_games` sobrescribe un ROM numerado y regenera la miniatura.
 - `test_push_games_removes_previous_slug_entries`: `push_games` reindexa un slug, elimina versiones antiguas y recompone la portada.
 
-## Atajos útiles
-
-- `gamesdb/shellscripts/connect_to_rg34xx_sp.sh`: abre SSH con la configuración cargada.
-- `uv run python -m gamesdb.thumbnailer portada.png destino.png`: genera miniaturas manualmente.
-- Mantén snapshots en `paths.sdcard_backup_dir`; cada ejecución de `backup-sd` aplica `rsync --delete`, así que conserva los subdirectorios fechados que quieras preservar.
