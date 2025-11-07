@@ -33,9 +33,6 @@ TARGET_DIR = Path(GAMESDB_CONFIG["paths"]["target_dir"])
 OUTPUT_DIR = Path(GAMESDB_CONFIG["paths"]["output_dir"])
 DATASETS_DIR = Path(GAMESDB_CONFIG["paths"]["datasets_dir"])
 
-text = GAMESDB_CONFIG['server']
-yaml_text = yaml.dump(text, sort_keys=False, default_flow_style=False)
-syntax = Syntax(yaml_text, "yaml", theme="monokai", line_numbers=False)
 paths = [Path(p) for k, p in GAMESDB_CONFIG["paths"].items() if "remote" not in k]
 setup_dirs(paths)
 
@@ -44,6 +41,9 @@ console.print(Panel.fit(
     title="[bold green]ThinThought Console Manager[/bold green]",
     border_style="green"
 ))
+text = GAMESDB_CONFIG
+yaml_text = yaml.dump(text, sort_keys=False, default_flow_style=False)
+syntax = Syntax(yaml_text, "yaml", theme="monokai", line_numbers=False)
 console.print(Panel.fit(
     syntax,
     title="[bold yellow]Server[/bold yellow]",

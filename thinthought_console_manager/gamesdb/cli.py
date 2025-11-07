@@ -20,6 +20,7 @@ from thinthought_console_manager.gamesdb.config_editor import set_config_value, 
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
+from rich.syntax import Syntax
 
 console = Console()
 
