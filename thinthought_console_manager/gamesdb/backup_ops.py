@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Backup CLI utilities for syncing the RG34XX SD card."""
 
-import argparse
 from datetime import datetime
 from pathlib import Path
 import subprocess
 
-import gamesdb
+import thinthought_console_manager.gamesdb as gamesdb
 from rich.console import Console
 from rich.panel import Panel
 

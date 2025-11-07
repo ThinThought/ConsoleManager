@@ -8,15 +8,15 @@ from pathlib import Path
 import subprocess
 
 import yaml
-import gamesdb
-from gamesdb.get_paths import get_paths
-from gamesdb.get_games import iter_reindexed_games
-from gamesdb.tree_to_csv_datasets import export_dataset
-from gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
-from gamesdb.thumbnailer import make_thumbnail
-from gamesdb.push_games import push_games
-from gamesdb.connect_gb import connect_to_device
-from gamesdb.config_editor import set_config_value, ConfigUpdateResult, resolve_config_path
+import thinthought_console_manager.gamesdb as gamesdb
+from thinthought_console_manager.gamesdb.get_paths import get_paths
+from thinthought_console_manager.gamesdb.get_games import iter_reindexed_games
+from thinthought_console_manager.gamesdb.tree_to_csv_datasets import export_dataset
+from thinthought_console_manager.gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
+from thinthought_console_manager.gamesdb.thumbnailer import make_thumbnail
+from thinthought_console_manager.gamesdb.push_games import push_games
+from thinthought_console_manager.gamesdb.connect_gb import connect_to_device
+from thinthought_console_manager.gamesdb.config_editor import set_config_value, ConfigUpdateResult, resolve_config_path
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track

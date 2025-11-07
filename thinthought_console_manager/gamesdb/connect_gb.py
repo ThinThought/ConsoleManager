@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-import gamesdb
+import thinthought_console_manager.gamesdb as gamesdb
 
 SSH_OPTIONS = [
     "-o",

@@ -1,25 +1,22 @@
-# Console Manager
+# ThinThought Console Manager
 <div align="center">
   <img src="logo4.png" alt="GamesDB" width="300" />
 </div>
-Utilidades en Python para mantener bibliotecas de ROMs: inserta juegos, normaliza carátulas en miniaturas 256×160 y genera datasets a partir de respaldos de la RG34XX (u otras consolas retro).
 
-## Configura primero
+`thinthought-console-manager` es una herramienta para gestionar ROMs y portadas en consolas y servers basados en Linux. Facilita la transferencia, conexion, organización y generación de miniaturas para juegos retro.
 
-Actualiza `gamesdb/data/config/config.yaml` con tus rutas reales:
+El objetivo es obtener una herramienta sencilla y automatizable para mantener bibliotecas de videojuegos en consolas en 
+en las que se pretende testear el software de HeWo.
 
-- Las rutas locales apuntan por defecto a `~/gamesdb_localdata/...`. GamesDB expande `~` y convierte cualquier ruta relativa en una dentro de tu `$HOME`, creando los directorios al cargar la configuración.
-- Ajusta `paths.roms_dir`, `paths.games_to_include_dir`, `paths.sdcard_backup_dir`, `paths.artifacts_dir` y `paths.target_dir` si usas otra ubicación.
-- Completa las credenciales del dispositivo en `server`.
+## Requisites
 
-> Tip: puedes editar valores desde la CLI con `uv run gamesdb config set paths.target_dir "~/otro/directorio"`. El comando valida la clave, guarda el YAML y recarga la configuración en caliente.
+- Python 3.13
+- `uv` como gestor de paquetes
 
-Asegúrate de tener montada la SD (ej. `/mnt/sdcard`) y contar con `rsync` y `sshpass`.
-
-## Instalación 
+## Install 
 
 ```bash
-uv pip install .
+uv pip install thinthought-console-manager
 ```
 
 `uv` instala dependencias bloqueadas y permite ejecutar cualquier comando con `uv run`.
@@ -27,35 +24,81 @@ uv pip install .
 
 ## CLI principal
 
-El script `gamesdb` reúne los flujos diarios:
+### gamesdb
+La CLI `gamesdb` ofrece comandos para gestionar la consola:
+
+#### config set
+Cambia la configuracion por defecto de config.yaml
+```
+uv run gamesdb config set <key> <value>
+uv run gamesdb config set server.host localhost
+```
+
+#### ping
+Checkea la conectividad con la consola en la red.
+```
+uv run gamesdb ping --count 2
+```
+
+#### connect
+Abre una conexión SSH a la consola.
+```
+uv run gamesdb connect
+```
+#### get-games
+Obtiene la lista de juegos en el ultimo backup de la consola, renumera y replica ROMs/portadas al `games_to_include`.
+```
+uv run gamesdb get-games
+```
+Esto crearia un directorio de staging con la siguiente estructura:
+```
+games_to_include/
+├── xxx_game_title_1/
+│   ├── xxx_game_title_1.rom
+│   └── xxx_game_title_1.png
+```
+Cambie imagenes y nombres de juegos segun sus preferencias.
+
+#### push
+Procesa `games_to_include`, moviendo nuevos juegos a la consola y generando miniaturas.
+```
+uv run gamesdb push
+```
+
+#### paths
+Obtiene los paths del target dir.
+```
+uv run gamesdb paths
+```
+#### datasets
+Exporta datasets CSV de los juegos en el target dir.
+```
+uv run gamesdb datasets
+```
+
+#### backup-sd
+Crea un snapshot incremental del sistema de archivos en tu tarjeta SD o restaura uno previo.
+```
+uv run gamesdb backup-sd
+```
+Creara un snapshot con el dia actual y `latest`. `latest` es el elegido para hacer procesamiento
 
 
-- `uv run gamesdb ping --count 2`: prueba conectividad antes de copiar datos.
-- `uv run gamesdb connect`: Te conecta por SSH a la consola.
-- `uv run gamesdb get-games`: renumera carpetas y replica ROMs/portadas al `games_to_include`.
-- `uv run gamesdb push`: procesa `games_to_include` y genera miniaturas.
-- `uv run gamesdb paths` y `uv run gamesdb datasets`: refrescan artefactos de navegación.
-- `uv run gamesdb backup-sd` / `uv run gamesdb restore <snapshot>`: gestionan snapshots incrementales.
+#### backup-system
+Realiza una copia de seguridad del sistema en la consola
+```
+uv run gamesdb backup-system
+```
+
+#### restore
+restaura la tarjeta SD a un snapshot previo
+```
+uv run gamesdb restore <snapshot>
+```
+
 
 ## Desarrollo y pruebas
 
 ```bash
-uv run pytest gamesdb_tests/tests.py -v
+uv run pip install -e .[dev]
 ```
-
-Los tests crean directorios temporales y dependen de la configuración cargada en `config.yaml`.
-
-### Qué valida cada test
-
-- `test_generate_paths`: `get_paths` escribe `paths.txt` en el directorio de artefactos (`OUTPUT_DIR`/`paths.artifacts_dir`).
-- `test_set_config_value_updates_custom_file`: `set_config_value` actualiza un YAML arbitrario y reporta los cambios.
-- `test_resolve_config_path_prefers_env_override`: `resolve_config_path` prioriza `GAMESDB_CONFIG_PATH`.
-- `test_export_datasets`: `export_dataset` produce CSV por cada subdirectorio válido de `TARGET_DIR`.
-- `test_server_ping`: comprueba conectividad ICMP con la consola configurada.
-- `test_thumbnailer_parser_handles_paths`: el parser CLI entrega `Path` para `thumbnailer`.
-- `test_get_games_reindexes_rom_and_png`: `get_games` renumera, copia assets y genera miniaturas mientras limpia residuos.
-- `test_push_games_inserts_staged_title`: `push_games` mueve nuevos juegos, asigna índice y elimina staging obsoleto.
-- `test_push_games_updates_cover_only`: `push_games` reemplaza solo carátulas existentes manteniendo el ROM.
-- `test_push_games_overwrites_numbered_rom`: `push_games` sobrescribe un ROM numerado y regenera la miniatura.
-- `test_push_games_removes_previous_slug_entries`: `push_games` reindexa un slug, elimina versiones antiguas y recompone la portada.
-
