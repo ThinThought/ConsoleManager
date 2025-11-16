@@ -21,7 +21,3 @@ include = ["thinthought_console_manager.gamesdb*"]
 [tool.setuptools.package-data]
 "thinthought_console_manager.gamesdb" = ["data/config/*.yaml"]
 
-[dependency-groups]
-dev = [
-    "pytest>=8.4.2",
-]
