@@ -11,7 +11,7 @@ import yaml
 @lru_cache(maxsize=1)
 def load_extension_mapping() -> dict[str, list[str]]:
     """Return a mapping from file extension to possible platform names."""
-    config_path = files("thinthought_console_manager.gamesdb.data.config").joinpath("emu_extensions.yaml")
+    config_path = files("tt_gamesdb.gamesdb.data.config").joinpath("emu_extensions.yaml")
     data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     mapping: dict[str, list[str]] = {}
     for platform, extensions in data.get("emu_extensions", {}).items():

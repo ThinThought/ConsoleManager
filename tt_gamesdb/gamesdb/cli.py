@@ -8,15 +8,15 @@ from pathlib import Path
 import subprocess
 
 import yaml
-import thinthought_console_manager.gamesdb as gamesdb
-from thinthought_console_manager.gamesdb.get_paths import get_paths
-from thinthought_console_manager.gamesdb.get_games import iter_reindexed_games
-from thinthought_console_manager.gamesdb.tree_to_csv_datasets import export_dataset
-from thinthought_console_manager.gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
-from thinthought_console_manager.gamesdb.thumbnailer import make_thumbnail
-from thinthought_console_manager.gamesdb.push_games import push_games
-from thinthought_console_manager.gamesdb.connect_gb import connect_to_device
-from thinthought_console_manager.gamesdb.config_editor import set_config_value, ConfigUpdateResult, resolve_config_path
+import tt_gamesdb.gamesdb as gamesdb
+from tt_gamesdb.gamesdb.get_paths import get_paths
+from tt_gamesdb.gamesdb.get_games import iter_reindexed_games
+from tt_gamesdb.gamesdb.tree_to_csv_datasets import export_dataset
+from tt_gamesdb.gamesdb.backup_ops import run_sd_backup, restore_sd_backup, run_systems_backup
+from tt_gamesdb.gamesdb.thumbnailer import make_thumbnail
+from tt_gamesdb.gamesdb.push_games import push_games
+from tt_gamesdb.gamesdb.connect_gb import connect_to_device
+from tt_gamesdb.gamesdb.config_editor import set_config_value, ConfigUpdateResult, resolve_config_path
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track

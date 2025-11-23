@@ -11,10 +11,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-import thinthought_console_manager.gamesdb as gamesdb
-from thinthought_console_manager.gamesdb.naming import slugify
-from thinthought_console_manager.gamesdb.platforms import EXTENSION_PLATFORMS
-from thinthought_console_manager.gamesdb.thumbnailer import make_thumbnail
+import tt_gamesdb.gamesdb as gamesdb
+from tt_gamesdb.gamesdb.naming import slugify
+from tt_gamesdb.gamesdb.platforms import EXTENSION_PLATFORMS
+from tt_gamesdb.gamesdb.thumbnailer import make_thumbnail
 
 PromptFn = Callable[[str], str]
 

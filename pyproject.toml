@@ -1,5 +1,5 @@
 [project]
-name = "thinthought-console-manager"
+name = "tt-gamesdb"
 version = "1.0.3"
 description = "Add your description here"
 readme = "readme.md"
@@ -9,15 +9,14 @@ dependencies = [
     "pyyaml>=6.0.3",
     "rich>=14.2.0",
     "tqdm>=4.67.1",
-    "gtts>=2.5.4",
 ]
 
 [project.scripts]
-gamesdb = "thinthought_console_manager.gamesdb.cli:main"
+gamesdb = "tt_gamesdb.gamesdb.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["thinthought_console_manager.gamesdb*"]
+include = ["tt_gamesdb.gamesdb*"]
 
 [tool.setuptools.package-data]
-"thinthought_console_manager.gamesdb" = ["data/config/*.yaml"]
+"tt_gamesdb.gamesdb" = ["data/config/*.yaml"]
 

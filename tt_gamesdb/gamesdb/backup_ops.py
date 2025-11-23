@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 import subprocess
 
-import thinthought_console_manager.gamesdb as gamesdb
+import tt_gamesdb.gamesdb as gamesdb
 from rich.console import Console
 from rich.panel import Panel
 

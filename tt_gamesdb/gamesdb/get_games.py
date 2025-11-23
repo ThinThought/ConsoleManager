@@ -8,8 +8,8 @@ from pathlib import Path
 import re
 import shutil
 
-from thinthought_console_manager.gamesdb.thumbnailer import make_thumbnail
-from thinthought_console_manager.gamesdb.naming import slugify
+from tt_gamesdb.gamesdb.thumbnailer import make_thumbnail
+from tt_gamesdb.gamesdb.naming import slugify
 
 
 @dataclass(frozen=True, slots=True)
