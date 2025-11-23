@@ -1,7 +1,7 @@
 # gamesdb_config.yaml
 server:
-  name: 192.168.1.140
-  ip: 192.168.1.140
+  name: localhost
+  ip: localhost
   port: 22
   user: root
   pass: root

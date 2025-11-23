@@ -1,29 +1,23 @@
 [project]
-name = "gamesdb"
-version = "1.0.1"
+name = "thinthought-console-manager"
+version = "1.0.3"
 description = "Add your description here"
-readme = "README.md"
+readme = "readme.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pathlib>=1.0.1",
     "opencv-python>=4.10.0.84",
     "pyyaml>=6.0.3",
     "rich>=14.2.0",
     "tqdm>=4.67.1",
+    "gtts>=2.5.4",
 ]
 
 [project.scripts]
-gamesdb = "gamesdb.cli:main"
-gamesdb-connect = "gamesdb.connect_gb:connect_to_device"
+gamesdb = "thinthought_console_manager.gamesdb.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["gamesdb*"]
-exclude = ["datasets*"]
+include = ["thinthought_console_manager.gamesdb*"]
 
 [tool.setuptools.package-data]
-gamesdb = ["data/config/*.yaml"]
+"thinthought_console_manager.gamesdb" = ["data/config/*.yaml"]
 
-[dependency-groups]
-dev = [
-    "pytest>=8.4.2",
-]
