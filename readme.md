@@ -3,7 +3,7 @@
   <img src="images/logo4.png" alt="GamesDB" width="300" />
 </div>
 
-`thinthought-console-manager` es una herramienta para gestionar ROMs y portadas en consolas y servers basados en Linux. Facilita la transferencia, conexion, organización y generación de miniaturas para juegos retro.
+`tt-gamesdb` es una herramienta para gestionar ROMs y portadas en consolas y servers basados en Linux. Facilita la transferencia, conexion, organización y generación de miniaturas para juegos retro.
 
 El objetivo es obtener una herramienta sencilla y automatizable para mantener bibliotecas de videojuegos en consolas en 
 en las que se pretende testear el software de HeWo.
@@ -16,7 +16,7 @@ en las que se pretende testear el software de HeWo.
 ## Install 
 
 ```bash
-uv pip install thinthought-console-manager
+uv pip install tt-manager
 ```
 
 `uv` instala dependencias bloqueadas y permite ejecutar cualquier comando con `uv run`.
